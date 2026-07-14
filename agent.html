@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent - AI 그룹웨어</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- 에이전트 공통 디자인: agent.css 수정 시 모든 에이전트 화면에 일괄 적용 -->
+    <link rel="stylesheet" href="agent.css">
+</head>
+<body>
+    <div class="agent-page">
+        <header class="agent-page-header">
+            <h1 class="agent-page-title" id="agent-page-title">Agent</h1>
+            <a href="index.html" class="agent-page-home-btn" id="agent-page-home-btn">홈으로 돌아가기</a>
+        </header>
+        <main class="agent-page-body" id="agent-page-body">
+            <!-- 에이전트별 콘텐츠 영역 (예: agent.html?agent=sales 로 접근 시 아래 스크립트가 제목만 설정) -->
+        </main>
+    </div>
+    <script>
+        (function () {
+            var params = new URLSearchParams(window.location.search);
+            var agentId = params.get("agent") || "";
+            var titles = {
+                meeting: "회의록",
+                receipt: "전표관리",
+                approval: "업무결재",
+                sales: "프로젝트 관리",
+                project: "프로젝트관리",
+                finance: "재무관리",
+                document: "문서관리"
+            };
+            var titleEl = document.getElementById("agent-page-title");
+            if (titleEl) titleEl.textContent = titles[agentId] || "Agent";
+            document.title = (titles[agentId] || "Agent") + " - AI 그룹웨어";
+        })();
+    </script>
+</body>
+</html>

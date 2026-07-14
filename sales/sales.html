@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로젝트 관리 - AI 그룹웨어</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../agent.css">
+</head>
+<body>
+    <div class="agent-page sales-onepage">
+        <header class="agent-page-header">
+            <h1 class="agent-page-title">프로젝트 관리</h1>
+            <a href="../index.html" class="agent-page-home-btn">홈으로 돌아가기</a>
+        </header>
+        <main class="agent-page-body">
+            <div class="sales-onepage-wrap">
+                <aside class="sales-master" id="sales-master">
+                    <div class="sales-master-header">
+                        <span class="sales-master-title">고객사</span>
+                        <button type="button" class="sales-search-btn" id="sales-search-btn" title="키워드 검색">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        </button>
+                    </div>
+                    <div class="sales-search-wrap">
+                        <input type="text" class="sales-search-input" id="sales-search-input" placeholder="고객사명 검색..." autocomplete="off">
+                    </div>
+                    <div class="sales-master-list">
+                        <button type="button" class="sales-master-item is-selected" data-id="1" data-name="(주)테크솔루션">
+                            <span class="sales-master-item-name">(주)테크솔루션</span>
+                            <span class="sales-master-item-meta">담당: 김영업 · 계약 2건</span>
+                        </button>
+                        <button type="button" class="sales-master-item" data-id="2" data-name="글로벌트레이드">
+                            <span class="sales-master-item-name">글로벌트레이드</span>
+                            <span class="sales-master-item-meta">담당: 이대리 · 계약 1건</span>
+                        </button>
+                        <button type="button" class="sales-master-item" data-id="3" data-name="디지털인프라">
+                            <span class="sales-master-item-name">디지털인프라</span>
+                            <span class="sales-master-item-meta">담당: 박팀장 · 계약 3건</span>
+                        </button>
+                        <button type="button" class="sales-master-item" data-id="4" data-name="스마트시티코리아">
+                            <span class="sales-master-item-name">스마트시티코리아</span>
+                            <span class="sales-master-item-meta">담당: 최과장 · 계약 0건</span>
+                        </button>
+                    </div>
+                </aside>
+                <div class="sales-detail-area">
+                    <div class="sales-bottom">
+                        <aside class="sales-left">
+                            <h2 class="sales-left-title">프로젝트</h2>
+                            <div id="sales-company-summary" class="sales-company-summary" style="display: none;"></div>
+                            <div id="sales-project-list"></div>
+                        </aside>
+                        <div class="sales-right">
+                            <div class="sales-right-default" id="sales-right-default">
+                                <h2 class="sales-right-title">통합 히스토리 타임라인</h2>
+                                <ul class="sales-timeline-onepage">
+                                    <li class="sales-tl-item approval"><div class="sales-tl-time">2025-03-12 14:30</div><span class="sales-tl-badge">전자결재</span><p class="sales-tl-title">계약서 검토 결재 승인</p><p class="sales-tl-desc">김영업 → 이대표 결재 완료. 2025년 유지보수 계약서.</p></li>
+                                    <li class="sales-tl-item meeting"><div class="sales-tl-time">2025-03-10 11:00</div><span class="sales-tl-badge">회의록</span><p class="sales-tl-title">Q2 제안서 검토 회의 요약</p><p class="sales-tl-desc">신규 모듈 도입 시기, 예산 범위 합의.</p></li>
+                                    <li class="sales-tl-item receipt"><div class="sales-tl-time">2025-03-05 09:15</div><span class="sales-tl-badge">전표</span><p class="sales-tl-title">교육비 지출 120만 원</p><p class="sales-tl-desc">온라인 교육 플랫폼 이용료.</p></li>
+                                    <li class="sales-tl-item meeting"><div class="sales-tl-time">2025-03-01 16:00</div><span class="sales-tl-badge">회의록</span><p class="sales-tl-title">3월 정기 점검 일정 협의</p><p class="sales-tl-desc">3/20 방문 점검 확정.</p></li>
+                                    <li class="sales-tl-item approval"><div class="sales-tl-time">2025-02-28 10:00</div><span class="sales-tl-badge">전자결재</span><p class="sales-tl-title">견적서 결재 대기 → 승인</p><p class="sales-tl-desc">추가 라이선스 50건 견적.</p></li>
+                                </ul>
+                            </div>
+                            <div class="sales-detail-view" id="sales-detail-view" style="display: none;">
+                                <div class="sales-project-detail-panel">
+                                    <button type="button" class="sales-back-to-list" id="sales-back-to-list">← 목록으로</button>
+                                    <div class="sales-project-detail-panel-header">
+                                        <h2 class="sales-project-detail-panel-title">프로젝트 상세</h2>
+                                        <button type="button" class="sales-project-detail-edit-btn" id="sales-edit-btn">수정</button>
+                                    </div>
+                                    <div id="sales-detail-sections"></div>
+                                </div>
+                                <div class="sales-meeting-notes-panel">
+                                    <h3>회의록 (최신순)</h3>
+                                    <div id="sales-meeting-notes-list">
+                                        <div class="sales-meeting-note-item">
+                                            <div class="sales-meeting-note-date">2025-03-10 11:00</div>
+                                            <p class="sales-meeting-note-title">Q2 제안서 검토 회의</p>
+                                            <p class="sales-meeting-note-summary">신규 모듈 도입 시기, 예산 범위 합의. 다음 주 내 제안서 초안 전달 예정.</p>
+                                        </div>
+                                        <div class="sales-meeting-note-item">
+                                            <div class="sales-meeting-note-date">2025-03-01 16:00</div>
+                                            <p class="sales-meeting-note-title">3월 정기 점검 일정 협의</p>
+                                            <p class="sales-meeting-note-summary">3/20 방문 점검 확정. 담당자 박기획, 현장 2명 동행.</p>
+                                        </div>
+                                        <div class="sales-meeting-note-item">
+                                            <div class="sales-meeting-note-date">2025-02-15 14:00</div>
+                                            <p class="sales-meeting-note-title">2월 진행 상황 점검</p>
+                                            <p class="sales-meeting-note-summary">이슈 없음. 3월 점검 일정만 확정 요청.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <div class="sales-project-edit-modal-overlay" id="sales-edit-modal" style="display: none;">
+            <div class="sales-project-edit-modal">
+                <div class="sales-project-edit-modal-header">프로젝트 세부내용 수정</div>
+                <div class="sales-project-edit-modal-body">
+                    <div class="sales-detail-section">
+                        <div class="sales-detail-section-title">기본 정보</div>
+                        <div class="sales-detail-grid">
+                            <label class="sales-detail-label">프로젝트명</label>
+                            <input type="text" class="sales-project-edit-input" id="edit-name">
+                            <label class="sales-detail-label">상태</label>
+                            <input type="text" class="sales-project-edit-input" id="edit-status">
+                            <label class="sales-detail-label">프로젝트 규모 (원)</label>
+                            <input type="number" class="sales-project-edit-input" id="edit-revenue" min="0" placeholder="숫자만 입력">
+                        </div>
+                    </div>
+                    <div class="sales-detail-section">
+                        <div class="sales-detail-section-title">일정</div>
+                        <div class="sales-detail-grid">
+                            <label class="sales-detail-label">시작일</label>
+                            <input type="date" class="sales-project-edit-input" id="edit-startDate">
+                            <label class="sales-detail-label">종료일</label>
+                            <input type="date" class="sales-project-edit-input" id="edit-endDate">
+                        </div>
+                    </div>
+                    <div class="sales-detail-section">
+                        <div class="sales-detail-section-title">담당</div>
+                        <div class="sales-detail-grid">
+                            <label class="sales-detail-label">담당자</label>
+                            <input type="text" class="sales-project-edit-input" id="edit-manager">
+                            <label class="sales-detail-label">참여 부서</label>
+                            <input type="text" class="sales-project-edit-input" id="edit-department">
+                        </div>
+                    </div>
+                    <div class="sales-detail-section">
+                        <div class="sales-detail-section-title">상세 설명</div>
+                        <textarea class="sales-project-edit-input" id="edit-desc" rows="4"></textarea>
+                    </div>
+                    <div class="sales-detail-section">
+                        <div class="sales-detail-section-title">비고</div>
+                        <textarea class="sales-project-edit-input" id="edit-note" rows="2" placeholder="선택 입력"></textarea>
+                    </div>
+                </div>
+                <div class="sales-project-edit-modal-footer">
+                    <button type="button" class="sales-project-edit-cancel" id="sales-edit-cancel">취소</button>
+                    <button type="button" class="sales-project-edit-save" id="sales-edit-save">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var master = document.getElementById("sales-master");
+            var searchBtn = document.getElementById("sales-search-btn");
+            var searchInput = document.getElementById("sales-search-input");
+            var masterItems = document.querySelectorAll(".sales-master-item");
+            var projectCards = document.querySelectorAll(".sales-project-card-clickable");
+            var rightDefault = document.getElementById("sales-right-default");
+            var detailView = document.getElementById("sales-detail-view");
+            var backBtn = document.getElementById("sales-back-to-list");
+            var editBtn = document.getElementById("sales-edit-btn");
+            var editModal = document.getElementById("sales-edit-modal");
+            var editCancel = document.getElementById("sales-edit-cancel");
+            var editSave = document.getElementById("sales-edit-save");
+            var editedProjectDetails = {};
+            var currentEditProjectId = null;
+
+            function formatRevenue(n) {
+                return n.toLocaleString("ko-KR") + "원";
+            }
+            var projectsByCompany = {
+                "1": [{ id: "p1", name: "2025 유지보수 계약 이행", due: "2025-06-30", progress: 65, revenue: 36000000, status: "진행중" }, { id: "p2", name: "Q2 신규 모듈 도입", due: "2025-05-15", progress: 30, revenue: 85000000, status: "진행중" }, { id: "p3", name: "정기 점검 3월", due: "2025-03-20", progress: 80, revenue: 12000000, status: "완료" }],
+                "2": [{ id: "p4", name: "수출 계약 이행", due: "2025-04-30", progress: 20, revenue: 150000000, status: "진행중" }],
+                "3": [{ id: "p5", name: "인프라 확장 1차", due: "2025-07-31", progress: 10, revenue: 220000000, status: "진행중" }, { id: "p6", name: "보안 점검", due: "2025-05-10", progress: 50, revenue: 45000000, status: "완료" }],
+                "4": []
+            };
+            var projectData = {
+                p1: { name: "2025 유지보수 계약 이행", status: "진행중", startDate: "2025-01-01", endDate: "2025-06-30", manager: "김영업", department: "영업팀", desc: "연간 유지보수 계약 이행 프로젝트. 정기 점검, 장애 대응, 소규모 개선 요청 반영.", revenue: 36000000 },
+                p2: { name: "Q2 신규 모듈 도입", status: "기획", startDate: "2025-04-01", endDate: "2025-05-15", manager: "박기획", department: "기획팀", desc: "신규 모듈 요구사항 정리 및 제안서 작성. 예산 확정 후 착수.", revenue: 85000000 },
+                p3: { name: "정기 점검 3월", status: "완료", startDate: "2025-03-01", endDate: "2025-03-20", manager: "김영업", department: "영업팀", desc: "3월 정기 방문 점검. 현장 2명 동행, 점검 리포트 제출.", revenue: 12000000 },
+                p4: { name: "수출 계약 이행", status: "진행중", startDate: "2025-03-01", endDate: "2025-04-30", manager: "이대리", department: "영업팀", desc: "수출 계약에 따른 납품 및 서류 진행.", revenue: 150000000 },
+                p5: { name: "인프라 확장 1차", status: "기획", startDate: "2025-05-01", endDate: "2025-07-31", manager: "박팀장", department: "기술팀", desc: "서버 및 네트워크 확장 1차 공사.", revenue: 220000000 },
+                p6: { name: "보안 점검", status: "완료", startDate: "2025-04-01", endDate: "2025-05-10", manager: "박팀장", department: "기술팀", desc: "전사 보안 점검 및 개선 권고안 작성.", revenue: 45000000 }
+            };
+            function getProjectRevenue(projectId, fallback) {
+                return (editedProjectDetails[projectId] && editedProjectDetails[projectId].revenue != null) ? editedProjectDetails[projectId].revenue : fallback;
+            }
+            function getCompanySummary(arr) {
+                var 진행중 = 0, 완료 = 0;
+                arr.forEach(function (p) {
+                    var rev = getProjectRevenue(p.id, p.revenue || 0);
+                    if (p.status === "진행중") 진행중 += rev;
+                    else if (p.status === "완료") 완료 += rev;
+                });
+                return { 진행중: 진행중, 완료: 완료 };
+            }
+            var meetingNotes = {
+                p1: [
+                    { date: "2025-03-10 11:00", title: "Q2 제안서 검토 회의", summary: "신규 모듈 도입 시기, 예산 범위 합의. 다음 주 내 제안서 초안 전달 예정." },
+                    { date: "2025-03-01 16:00", title: "3월 정기 점검 일정 협의", summary: "3/20 방문 점검 확정. 담당자 박기획, 현장 2명 동행." },
+                    { date: "2025-02-15 14:00", title: "2월 진행 상황 점검", summary: "이슈 없음. 3월 점검 일정만 확정 요청." }
+                ],
+                p2: [{ date: "2025-03-08 10:00", title: "신규 모듈 킥오프", summary: "범위 및 일정 논의. 4월 초 요구사항 정리본 공유." }],
+                p3: [{ date: "2025-03-01 16:00", title: "3월 정기 점검 일정 협의", summary: "3/20 방문 점검 확정." }],
+                p4: [], p5: [], p6: []
+            };
+
+            function renderProjectList(companyId) {
+                var list = document.getElementById("sales-project-list");
+                var summaryEl = document.getElementById("sales-company-summary");
+                var arr = projectsByCompany[companyId] || [];
+                if (arr.length === 0) {
+                    summaryEl.style.display = "none";
+                    list.innerHTML = "<p style=\"font-size:13px;color:#64748b;margin:0;\">등록된 프로젝트가 없습니다.</p>";
+                    return;
+                }
+                var sum = getCompanySummary(arr);
+                summaryEl.innerHTML = "<div class=\"sales-company-summary-row\"><span class=\"sales-company-summary-label\">진행중 합계</span><span class=\"sales-company-summary-value\">" + formatRevenue(sum.진행중) + "</span></div><div class=\"sales-company-summary-row\"><span class=\"sales-company-summary-label\">완료 합계</span><span class=\"sales-company-summary-value\">" + formatRevenue(sum.완료) + "</span></div>";
+                summaryEl.style.display = "block";
+                list.innerHTML = arr.map(function (p) {
+                    var rev = formatRevenue(getProjectRevenue(p.id, p.revenue != null ? p.revenue : 0));
+                    return "<div class=\"sales-project-card sales-project-card-clickable\" data-project-id=\"" + p.id + "\"><div class=\"sales-project-head\"><p class=\"sales-project-name\">" + p.name + "</p><span class=\"sales-project-revenue\">" + rev + "</span></div><p class=\"sales-project-meta\">마감 " + p.due + "</p><div class=\"sales-progress-row\"><div class=\"sales-progress-wrap\"><div class=\"sales-progress-bar\" style=\"width:" + p.progress + "%;\"></div></div><span class=\"sales-progress-pct\">" + p.progress + "%</span></div></div>";
+                }).join("");
+                list.querySelectorAll(".sales-project-card-clickable").forEach(function (card) {
+                    card.addEventListener("click", function () {
+                        list.querySelectorAll(".sales-project-card-clickable").forEach(function (c) { c.classList.remove("is-selected"); });
+                        this.classList.add("is-selected");
+                        var id = this.getAttribute("data-project-id");
+                        setCurrentProjectForDetail(id);
+                        showProjectDetail(id);
+                    });
+                });
+            }
+
+            function filterCompanies() {
+                var q = (searchInput.value || "").trim().toLowerCase();
+                masterItems.forEach(function (item) {
+                    var name = (item.getAttribute("data-name") || "").toLowerCase();
+                    item.setAttribute("data-hidden", q && name.indexOf(q) === -1 ? "true" : "false");
+                });
+            }
+
+            searchBtn.addEventListener("click", function () {
+                master.classList.toggle("is-search-open");
+                if (master.classList.contains("is-search-open")) searchInput.focus();
+            });
+            searchInput.addEventListener("input", filterCompanies);
+            searchInput.addEventListener("keydown", function (e) { if (e.key === "Escape") { searchInput.value = ""; filterCompanies(); master.classList.remove("is-search-open"); } });
+
+            masterItems.forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    masterItems.forEach(function (b) { b.classList.remove("is-selected"); });
+                    this.classList.add("is-selected");
+                    hideProjectDetail();
+                    renderProjectList(this.getAttribute("data-id"));
+                });
+            });
+
+            function getProjectDetail(projectId) {
+                return editedProjectDetails[projectId] ? Object.assign({}, projectData[projectId], editedProjectDetails[projectId]) : (projectData[projectId] || null);
+            }
+
+            function showProjectDetail(projectId) {
+                var data = getProjectDetail(projectId);
+                var notes = (meetingNotes[projectId] || []).slice().reverse();
+                if (!data) return;
+                var sectionsEl = document.getElementById("sales-detail-sections");
+                var revStr = formatRevenue(data.revenue != null ? data.revenue : 0);
+                sectionsEl.innerHTML =
+                    "<h3>" + (data.name || "") + "</h3>" +
+                    "<div class=\"sales-detail-section\"><div class=\"sales-detail-section-title\">기본 정보</div><div class=\"sales-detail-grid\"><span class=\"sales-detail-label\">프로젝트명</span><p class=\"sales-detail-value\">" + (data.name || "") + "</p><span class=\"sales-detail-label\">상태</span><p class=\"sales-detail-value\">" + (data.status || "") + "</p><span class=\"sales-detail-label\">프로젝트 규모</span><p class=\"sales-detail-value sales-detail-revenue\">" + revStr + "</p></div></div>" +
+                    "<div class=\"sales-detail-section\"><div class=\"sales-detail-section-title\">일정</div><div class=\"sales-detail-grid\"><span class=\"sales-detail-label\">시작일</span><p class=\"sales-detail-value\">" + (data.startDate || "") + "</p><span class=\"sales-detail-label\">종료일</span><p class=\"sales-detail-value\">" + (data.endDate || "") + "</p></div></div>" +
+                    "<div class=\"sales-detail-section\"><div class=\"sales-detail-section-title\">담당</div><div class=\"sales-detail-grid\"><span class=\"sales-detail-label\">담당자</span><p class=\"sales-detail-value\">" + (data.manager || "") + "</p><span class=\"sales-detail-label\">참여 부서</span><p class=\"sales-detail-value\">" + (data.department || "") + "</p></div></div>" +
+                    "<div class=\"sales-detail-section\"><div class=\"sales-detail-section-title\">상세 설명</div><p class=\"sales-detail-desc-block\">" + (data.desc || "") + "</p></div>" +
+                    (data.note ? "<div class=\"sales-detail-section\"><div class=\"sales-detail-section-title\">비고</div><p class=\"sales-detail-desc-block\">" + data.note + "</p></div>" : "");
+                var listEl = document.getElementById("sales-meeting-notes-list");
+                listEl.innerHTML = notes.map(function (n) {
+                    return "<div class=\"sales-meeting-note-item\"><div class=\"sales-meeting-note-date\">" + n.date + "</div><p class=\"sales-meeting-note-title\">" + n.title + "</p><p class=\"sales-meeting-note-summary\">" + n.summary + "</p></div>";
+                }).join("");
+                rightDefault.style.display = "none";
+                detailView.style.display = "flex";
+            }
+
+            function hideProjectDetail() {
+                rightDefault.style.display = "block";
+                detailView.style.display = "none";
+                document.querySelectorAll(".sales-project-card-clickable").forEach(function (c) { c.classList.remove("is-selected"); });
+            }
+
+            editBtn.addEventListener("click", function () {
+                if (!currentEditProjectId) return;
+                var data = getProjectDetail(currentEditProjectId);
+                if (!data) return;
+                document.getElementById("edit-name").value = data.name || "";
+                document.getElementById("edit-status").value = data.status || "";
+                document.getElementById("edit-revenue").value = (data.revenue != null && data.revenue !== "") ? data.revenue : "";
+                document.getElementById("edit-startDate").value = data.startDate || "";
+                document.getElementById("edit-endDate").value = data.endDate || "";
+                document.getElementById("edit-manager").value = data.manager || "";
+                document.getElementById("edit-department").value = data.department || "";
+                document.getElementById("edit-desc").value = data.desc || "";
+                document.getElementById("edit-note").value = data.note || "";
+                editModal.style.display = "flex";
+            });
+            editModal.addEventListener("click", function (e) {
+                if (e.target === editModal) editModal.style.display = "none";
+            });
+            editCancel.addEventListener("click", function () { editModal.style.display = "none"; });
+            editSave.addEventListener("click", function () {
+                if (!currentEditProjectId) return;
+                var revVal = document.getElementById("edit-revenue").value;
+                var revenue = (revVal === "" || revVal == null) ? undefined : (parseInt(revVal, 10) || 0);
+                editedProjectDetails[currentEditProjectId] = {
+                    name: document.getElementById("edit-name").value,
+                    status: document.getElementById("edit-status").value,
+                    revenue: revenue,
+                    startDate: document.getElementById("edit-startDate").value,
+                    endDate: document.getElementById("edit-endDate").value,
+                    manager: document.getElementById("edit-manager").value,
+                    department: document.getElementById("edit-department").value,
+                    desc: document.getElementById("edit-desc").value,
+                    note: document.getElementById("edit-note").value || undefined
+                };
+                editModal.style.display = "none";
+                renderProjectList(document.querySelector(".sales-master-item.is-selected").getAttribute("data-id"));
+                showProjectDetail(currentEditProjectId);
+            });
+
+            function setCurrentProjectForDetail(projectId) {
+                currentEditProjectId = projectId;
+            }
+
+            renderProjectList("1");
+            backBtn.addEventListener("click", hideProjectDetail);
+        })();
+    </script>
+</body>
+</html>
