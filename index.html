@@ -3,226 +3,196 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 그룹웨어 · ERP</title>
+    <title>홈 - Ryanlen ERP</title>
     <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-    <div class="app">
-        <!-- 좌측 사이드바 — Linear style -->
-        <aside class="sidebar sidebar-left">
-            <div class="brand">
-                <span class="brand-mark" aria-hidden="true"></span>
-                <div class="brand-text">
-                    <span class="brand-logo">Ryanlen</span>
-                    <span class="brand-tagline">AI Groupware</span>
-                </div>
+<body data-page="home">
+    <div class="dash" data-shell-content>
+        <div class="page-head">
+            <div>
+                <h1 class="dash-greeting-title" id="dash-greeting"></h1>
+                <p class="dash-greeting-desc" id="dash-date"></p>
             </div>
-            <div class="sidebar-user-info">
-                <span class="sidebar-user-label">내 정보</span>
-                <div class="sidebar-user-row">
-                    <span class="sidebar-user-name" id="sidebar-user-name"></span>
-                    <button type="button" class="sidebar-user-btn" id="btn-account-settings" title="이름·직급 변경, 사용자 전환, 백업">계정관리</button>
-                </div>
-                <div class="sidebar-user-meta">
-                    <span class="role-badge" id="sidebar-user-role"></span>
-                    <a class="sidebar-admin-link" id="btn-admin" href="admin/admin.html" hidden>관리자 페이지 →</a>
-                </div>
+            <div class="page-actions">
+                <input type="search" class="panel-search" id="global-search" placeholder="업무·할 일 필터  (/)" autocomplete="off" aria-label="업무·할 일 필터">
+                <button type="button" class="btn-primary" id="btn-dash-add-todo">+ 할 일 추가</button>
             </div>
-            <div class="sidebar-calendar">
-                <div class="sidebar-calendar-header">
-                    <button type="button" class="sidebar-calendar-prev" id="calendar-prev" aria-label="이전 달">‹</button>
-                    <span class="sidebar-calendar-title" id="calendar-title" aria-live="polite"></span>
-                    <button type="button" class="sidebar-calendar-next" id="calendar-next" aria-label="다음 달">›</button>
-                </div>
-                <div class="sidebar-calendar-weekdays" aria-hidden="true">
-                    <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
-                </div>
-                <div class="sidebar-calendar-days" id="calendar-days"></div>
-                <div class="sidebar-calendar-events" id="calendar-events"></div>
-            </div>
-        </aside>
+        </div>
 
-        <!-- 메인 콘텐츠 -->
-        <main class="main">
-            <header class="main-header">
-                <div class="header-left">
-                    <div class="header-search-wrap">
-                        <input type="search" class="header-search" id="global-search" placeholder="업무·할 일 검색  (/)" autocomplete="off" aria-label="검색">
-                    </div>
-                </div>
-                <div class="header-right">
-                    <button type="button" class="header-inbox-btn" id="btn-focus-inbox" title="오늘 처리할 일 보기">
-                        인박스 <span class="header-inbox-count" id="inbox-count">0</span>
-                    </button>
-                    <span class="header-secure" title="모든 데이터는 이 브라우저에만 저장됩니다. 계정관리에서 백업하세요."><span class="secure-icon" aria-hidden="true"></span> 이 기기에만 저장</span>
-                    <button type="button" class="header-messenger-btn" id="btn-messenger-open" aria-label="팀 메시지 열기">메시지</button>
-                </div>
-            </header>
-            <div class="main-content">
-                <section class="onboarding" id="onboarding" aria-label="시작하기" hidden>
-                    <div class="onboarding-text">
-                        <strong>처음 오셨나요?</strong>
-                        <ol>
-                            <li><b>계정관리</b>에서 내 이름·직급을 설정하세요.</li>
-                            <li>할 일은 <kbd>T</kbd> 키로 바로 추가하고, <kbd>/</kbd> 키로 검색할 수 있어요.</li>
-                            <li>아래 <b>비용관리</b>에서 초기 자금과 지출을 기록해 런웨이를 확인하세요.</li>
-                        </ol>
-                        <p class="onboarding-note">지금 보이는 업무·할 일·일정·메시지는 <b>예시 데이터</b>입니다.</p>
-                    </div>
-                    <div class="onboarding-actions">
-                        <button type="button" class="btn-primary" id="onboarding-clear">예시 데이터 지우고 시작</button>
-                        <button type="button" class="btn-secondary" id="onboarding-dismiss">예시 유지</button>
-                    </div>
-                </section>
-                <section class="today-focus" id="today-focus" aria-labelledby="today-focus-title">
-                    <div class="today-focus-head">
-                        <h2 class="today-focus-title" id="today-focus-title">포커스 인박스</h2>
-                        <span class="today-focus-hint">긴급 · 오늘 · 기한 지남</span>
-                    </div>
-                    <div class="today-focus-chips" id="today-focus-chips" role="group" aria-label="포커스 필터">
-                        <button type="button" class="focus-chip is-active" data-focus="all" aria-pressed="true">전체</button>
-                        <button type="button" class="focus-chip" data-focus="urgent" aria-pressed="false">긴급 <span id="focus-urgent-count">0</span></button>
-                        <button type="button" class="focus-chip" data-focus="today" aria-pressed="false">오늘 마감 <span id="focus-today-count">0</span></button>
-                        <button type="button" class="focus-chip" data-focus="overdue" aria-pressed="false">기한 지남 <span id="focus-overdue-count">0</span></button>
-                        <button type="button" class="focus-chip" data-focus="mine" aria-pressed="false">내 담당</button>
-                    </div>
-                    <ul class="today-focus-list" id="today-focus-list"></ul>
-                </section>
-                <div class="main-top-row">
-                    <section class="work-instructions panel-block" aria-labelledby="work-title">
-                        <div class="panel-header">
-                            <h2 class="panel-title" id="work-title">업무 요청</h2>
-                            <button type="button" class="panel-action-btn" id="work-instructions-confirm-btn">관리</button>
-                        </div>
-                        <div class="panel-toolbar">
-                            <div class="list-filter-tabs" id="work-filter-tabs" role="group" aria-label="업무 요청 필터">
-                                <button type="button" class="list-filter-tab is-active" data-filter="open" aria-pressed="true">미완료</button>
-                                <button type="button" class="list-filter-tab" data-filter="urgent" aria-pressed="false">긴급</button>
-                                <button type="button" class="list-filter-tab" data-filter="today" aria-pressed="false">오늘</button>
-                                <button type="button" class="list-filter-tab" data-filter="done" aria-pressed="false">완료</button>
-                            </div>
-                        </div>
-                        <div class="work-instructions-list-header work-instructions-grid-cols panel-table-head" aria-hidden="true">
-                            <span class="work-instructions-h-num">번호</span>
-                            <span class="work-instructions-h-type">유형</span>
-                            <span class="work-instructions-h-text">요청내용</span>
-                            <span class="work-instructions-h-date">처리목표일</span>
-                            <span class="work-instructions-h-requester">요청자</span>
-                        </div>
-                        <ul class="work-instructions-list panel-table-body" id="work-instructions-list"></ul>
-                    </section>
-                    <section class="todo-section panel-block" aria-labelledby="todo-title">
-                        <div class="panel-header">
-                            <h2 class="panel-title" id="todo-title">할 일</h2>
-                            <div class="panel-header-actions">
-                                <button type="button" class="todo-quick-add-btn" id="todo-quick-add-btn">추가</button>
-                                <button type="button" class="panel-action-btn" id="todo-manage-btn">관리</button>
-                            </div>
-                        </div>
-                        <div class="panel-toolbar todo-quick-add">
-                            <input type="text" class="todo-quick-input" id="todo-quick-input" placeholder="할 일 빠른 추가 (T, Enter)" maxlength="50" aria-label="할 일 빠른 추가">
-                            <input type="date" class="todo-quick-date" id="todo-quick-date" aria-label="목표일">
-                        </div>
-                        <div class="todo-list-header todo-grid-cols panel-table-head" aria-hidden="true">
-                            <span class="todo-list-h-check">완료</span>
-                            <span class="todo-list-h-label">할 일 내용</span>
-                            <span class="todo-list-h-due">목표일</span>
-                        </div>
-                        <div class="todo-list-wrap panel-table-body">
-                            <ul class="todo-list" id="todo-list"></ul>
-                        </div>
-                    </section>
-                </div>
-                <section class="agent-cards" id="agent-cards" aria-label="업무 메뉴">
-                    <a class="agent-card" href="cost/cost.html" data-agent="cost">
-                        <div class="agent-card-icon" aria-hidden="true">💸</div>
-                        <h3 class="agent-card-title">비용관리</h3>
-                        <p class="agent-card-desc">초기 자금·지출·런웨이·증빙 관리</p>
-                    </a>
-                    <a class="agent-card" href="sales/sales.html" data-agent="sales">
-                        <div class="agent-card-icon" aria-hidden="true">📊</div>
-                        <h3 class="agent-card-title">프로젝트 관리</h3>
-                        <p class="agent-card-desc">고객사별 프로젝트·계약·히스토리 관리</p>
-                    </a>
-                    <div class="agent-card is-coming" data-agent="meeting" aria-disabled="true">
-                        <span class="agent-card-badge">준비 중</span>
-                        <div class="agent-card-icon" aria-hidden="true">📋</div>
-                        <h3 class="agent-card-title">회의록</h3>
-                        <p class="agent-card-desc">회의록 정리, 요약, 액션 아이템 추출</p>
-                    </div>
-                    <div class="agent-card is-coming" data-agent="receipt" aria-disabled="true">
-                        <span class="agent-card-badge">준비 중</span>
-                        <div class="agent-card-icon" aria-hidden="true">🧾</div>
-                        <h3 class="agent-card-title">전표관리</h3>
-                        <p class="agent-card-desc">전표·지출 분류, 영수증 인식·정리</p>
-                    </div>
-                    <div class="agent-card is-coming" data-agent="approval" aria-disabled="true">
-                        <span class="agent-card-badge">준비 중</span>
-                        <div class="agent-card-icon" aria-hidden="true">✓</div>
-                        <h3 class="agent-card-title">업무결재</h3>
-                        <p class="agent-card-desc">결재 요청·승인·이력 조회</p>
-                    </div>
-                    <div class="agent-card is-coming" data-agent="finance" aria-disabled="true">
-                        <span class="agent-card-badge">준비 중</span>
-                        <div class="agent-card-icon" aria-hidden="true">💰</div>
-                        <h3 class="agent-card-title">재무관리</h3>
-                        <p class="agent-card-desc">예산·결산·재무 보고</p>
-                    </div>
-                    <div class="agent-card is-coming" data-agent="document" aria-disabled="true">
-                        <span class="agent-card-badge">준비 중</span>
-                        <div class="agent-card-icon" aria-hidden="true">📄</div>
-                        <h3 class="agent-card-title">문서관리</h3>
-                        <p class="agent-card-desc">문서 등록·검색·버전 관리</p>
-                    </div>
-                </section>
+        <section class="onboarding" id="onboarding" aria-label="시작하기" hidden>
+            <div class="onboarding-text">
+                <strong>처음 오셨나요?</strong>
+                <ol>
+                    <li>왼쪽 위 <b>내 정보 → 계정관리</b>에서 이름·직급을 설정하세요.</li>
+                    <li>할 일은 <kbd>T</kbd> 키로 바로 추가하고, <kbd>⌘K</kbd>로 어디서든 검색할 수 있어요.</li>
+                    <li><b>비용관리</b>에서 초기 자금과 지출을 기록하면 이 화면에 지출 추이와 런웨이가 표시됩니다.</li>
+                </ol>
+                <p class="onboarding-note">지금 보이는 업무·할 일·일정·메시지는 <b>예시 데이터</b>입니다.</p>
             </div>
-        </main>
+            <div class="onboarding-actions">
+                <button type="button" class="btn-primary" id="onboarding-clear">예시 데이터 지우고 시작</button>
+                <button type="button" class="btn-secondary" id="onboarding-dismiss">예시 유지</button>
+            </div>
+        </section>
 
-        <!-- 우측 팀원 내부 메신저 -->
-        <aside class="sidebar sidebar-right messenger-panel" aria-label="팀 메시지">
-            <div class="messenger-header">
-                <h2 class="messenger-title">팀 메시지</h2>
-                <button type="button" class="messenger-org-btn" id="btn-messenger-org">조직도</button>
-                <button type="button" class="messenger-toggle" id="btn-messenger-toggle" aria-label="패널 접기" aria-expanded="true">◀</button>
-            </div>
-            <div class="messenger-list" id="messenger-list">
-                <button type="button" class="messenger-room active" data-room="team" data-participants="10">
-                    <span class="room-avatar" aria-hidden="true">T</span>
-                    <span class="room-info">
-                        <span class="room-name">전체 팀</span>
-                        <span class="room-preview">안녕하세요, 오늘 회의...</span>
-                    </span>
-                    <span class="room-badge">3</span>
-                </button>
-                <button type="button" class="messenger-room" data-room="user2" data-participants="2">
-                    <span class="room-avatar" aria-hidden="true">김</span>
-                    <span class="room-info">
-                        <span class="room-name">김철수</span>
-                        <span class="room-preview">전표 확인 부탁드립니다</span>
-                    </span>
-                </button>
-                <button type="button" class="messenger-room" data-room="user3" data-participants="2">
-                    <span class="room-avatar" aria-hidden="true">이</span>
-                    <span class="room-info">
-                        <span class="room-name">이영희</span>
-                        <span class="room-preview">결재 승인해 주세요</span>
-                    </span>
-                    <span class="room-badge">1</span>
-                </button>
-            </div>
-            <div class="messenger-chat" id="messenger-chat">
-                <div class="chat-room-header">
-                    <span class="chat-room-title" id="chat-room-title">전체 팀</span>
-                    <span class="chat-room-count" id="chat-room-count">나 포함 10명</span>
+        <section class="kpi-grid" id="dash-kpis" aria-label="핵심 지표"></section>
+
+        <div class="dash-row dash-row-charts" id="dash-charts">
+            <section class="card" aria-labelledby="dash-trend-title">
+                <div class="card-head">
+                    <h2 class="card-title" id="dash-trend-title">월별 지출 추이</h2>
+                    <div class="chart-legend" id="dash-trend-legend"></div>
                 </div>
-                <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
-                <div class="chat-input-wrap">
-                    <input type="text" class="chat-input" id="chat-input" placeholder="메시지를 입력하세요" aria-label="메시지 입력">
-                    <button type="button" class="chat-send" id="chat-send">전송</button>
+                <div id="dash-trend"></div>
+            </section>
+            <section class="card" aria-labelledby="dash-donut-title">
+                <div class="card-head">
+                    <h2 class="card-title" id="dash-donut-title">이번 달 지출 구성</h2>
+                    <a class="card-link" href="cost/cost.html">비용관리 →</a>
                 </div>
-            </div>
-        </aside>
+                <div id="dash-donut" class="donut-host"></div>
+            </section>
+        </div>
+
+        <div class="dash-row dash-row-focus">
+            <section class="card today-focus" id="today-focus" aria-labelledby="today-focus-title">
+                <div class="card-head">
+                    <h2 class="card-title" id="today-focus-title">오늘의 주요 업무</h2>
+                    <span class="card-meta">긴급 · 오늘 · 기한 지남</span>
+                </div>
+                <div class="today-focus-chips" id="today-focus-chips" role="group" aria-label="포커스 필터">
+                    <button type="button" class="focus-chip is-active" data-focus="all" aria-pressed="true">전체</button>
+                    <button type="button" class="focus-chip" data-focus="urgent" aria-pressed="false">긴급 <span id="focus-urgent-count">0</span></button>
+                    <button type="button" class="focus-chip" data-focus="today" aria-pressed="false">오늘 <span id="focus-today-count">0</span></button>
+                    <button type="button" class="focus-chip" data-focus="overdue" aria-pressed="false">기한 지남 <span id="focus-overdue-count">0</span></button>
+                    <button type="button" class="focus-chip" data-focus="mine" aria-pressed="false">내 담당</button>
+                </div>
+                <ul class="today-focus-list" id="today-focus-list"></ul>
+            </section>
+
+            <section class="card" aria-labelledby="dash-brief-title">
+                <div class="card-head">
+                    <h2 class="card-title" id="dash-brief-title">주요 이슈 브리핑</h2>
+                    <span class="brief-tag">자동 분석</span>
+                </div>
+                <ul class="brief-list" id="dash-brief"></ul>
+            </section>
+
+        </div>
+
+        <div class="dash-row dash-row-2">
+            <section class="card work-instructions" aria-labelledby="work-title">
+                <div class="card-head">
+                    <h2 class="card-title" id="work-title">업무 요청</h2>
+                    <button type="button" class="btn-secondary" id="work-instructions-confirm-btn">관리</button>
+                </div>
+                <div class="panel-toolbar">
+                    <div class="list-filter-tabs" id="work-filter-tabs" role="group" aria-label="업무 요청 필터">
+                        <button type="button" class="list-filter-tab is-active" data-filter="open" aria-pressed="true">미완료</button>
+                        <button type="button" class="list-filter-tab" data-filter="urgent" aria-pressed="false">긴급</button>
+                        <button type="button" class="list-filter-tab" data-filter="today" aria-pressed="false">오늘</button>
+                        <button type="button" class="list-filter-tab" data-filter="done" aria-pressed="false">완료</button>
+                    </div>
+                </div>
+                <div class="work-instructions-list-header work-instructions-grid-cols panel-table-head" aria-hidden="true">
+                    <span>번호</span>
+                    <span>유형</span>
+                    <span>요청내용</span>
+                    <span>목표일</span>
+                    <span class="work-instructions-h-requester">요청자</span>
+                </div>
+                <ul class="work-instructions-list panel-table-body" id="work-instructions-list"></ul>
+            </section>
+
+            <section class="card todo-section" aria-labelledby="todo-title">
+                <div class="card-head">
+                    <h2 class="card-title" id="todo-title">할 일</h2>
+                    <button type="button" class="btn-secondary" id="todo-manage-btn">관리</button>
+                </div>
+                <div class="todo-quick-add">
+                    <input type="text" class="input todo-quick-input" id="todo-quick-input" placeholder="할 일 빠른 추가 (T, Enter)" maxlength="50" aria-label="할 일 빠른 추가">
+                    <input type="date" class="input todo-quick-date" id="todo-quick-date" aria-label="목표일">
+                    <button type="button" class="btn-secondary" id="todo-quick-add-btn">추가</button>
+                </div>
+                <div class="todo-list-header todo-grid-cols panel-table-head" aria-hidden="true">
+                    <span>완료</span>
+                    <span>할 일 내용</span>
+                    <span>목표일</span>
+                </div>
+                <div class="todo-list-wrap">
+                    <ul class="todo-list panel-table-body" id="todo-list"></ul>
+                </div>
+            </section>
+        </div>
     </div>
+
+    <!-- 사이드바 맨 아래: 일정 드롭다운 (shell.js가 사이드바로 옮김) -->
+    <div class="side-cal" data-shell-side-bottom>
+        <button type="button" class="cal-toggle" id="calendar-toggle" aria-expanded="false" aria-controls="calendar-panel">
+            <span class="cal-toggle-text">
+                <span class="cal-toggle-title">일정</span>
+                <span class="cal-toggle-sub" id="calendar-toggle-sub"></span>
+            </span>
+            <span class="cal-toggle-chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="cal-panel" id="calendar-panel" hidden>
+            <div class="cal-head">
+                <button type="button" class="cal-nav" id="calendar-prev" aria-label="이전 달">‹</button>
+                <span class="cal-title" id="calendar-title" aria-live="polite"></span>
+                <button type="button" class="cal-nav" id="calendar-next" aria-label="다음 달">›</button>
+            </div>
+            <div class="cal-weekdays" aria-hidden="true">
+                <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+            </div>
+            <div class="cal-days" id="calendar-days"></div>
+            <div class="cal-events" id="calendar-events"></div>
+        </div>
+    </div>
+
+    <!-- 팀 메시지 (우측 드로어) -->
+    <aside class="messenger-panel collapsed" aria-label="팀 메시지">
+        <div class="messenger-header">
+            <h2 class="messenger-title">팀 메시지</h2>
+            <button type="button" class="btn-secondary messenger-org-btn" id="btn-messenger-org">조직도</button>
+            <button type="button" class="icon-btn messenger-toggle" id="btn-messenger-toggle" aria-label="닫기" aria-expanded="false">✕</button>
+        </div>
+        <div class="messenger-list" id="messenger-list">
+            <button type="button" class="messenger-room active" data-room="team" data-participants="10">
+                <span class="room-avatar" aria-hidden="true">T</span>
+                <span class="room-info">
+                    <span class="room-name">전체 팀</span>
+                    <span class="room-preview">안녕하세요, 오늘 회의...</span>
+                </span>
+                <span class="room-badge">3</span>
+            </button>
+            <button type="button" class="messenger-room" data-room="user2" data-participants="2">
+                <span class="room-avatar" aria-hidden="true">김</span>
+                <span class="room-info">
+                    <span class="room-name">김철수</span>
+                    <span class="room-preview">전표 확인 부탁드립니다</span>
+                </span>
+            </button>
+            <button type="button" class="messenger-room" data-room="user3" data-participants="2">
+                <span class="room-avatar" aria-hidden="true">이</span>
+                <span class="room-info">
+                    <span class="room-name">이영희</span>
+                    <span class="room-preview">결재 승인해 주세요</span>
+                </span>
+                <span class="room-badge">1</span>
+            </button>
+        </div>
+        <div class="messenger-chat" id="messenger-chat">
+            <div class="chat-room-header">
+                <span class="chat-room-title" id="chat-room-title">전체 팀</span>
+                <span class="chat-room-count" id="chat-room-count">나 포함 10명</span>
+            </div>
+            <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
+            <div class="chat-input-wrap">
+                <input type="text" class="input chat-input" id="chat-input" placeholder="메시지를 입력하세요" aria-label="메시지 입력">
+                <button type="button" class="btn-primary chat-send" id="chat-send">전송</button>
+            </div>
+        </div>
+    </aside>
 
     <!-- 업무 요청사항 관리 팝업 -->
     <div class="modal-overlay" id="modal-work-instructions" hidden>
@@ -355,6 +325,7 @@
         </div>
     </div>
 
+    <button type="button" id="btn-account-settings" hidden>계정관리</button>
     <!-- 계정관리 팝업 -->
     <div class="modal-overlay" id="modal-account" hidden>
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-account-title">
@@ -393,8 +364,10 @@
         <span id="app-toast-text"></span>
         <button type="button" class="app-toast-action" id="app-toast-action" hidden>실행취소</button>
     </div>
+    <div class="chart-tooltip" id="chart-tooltip" hidden></div>
 
     <script src="members.js"></script>
+    <script src="shell.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

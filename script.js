@@ -120,16 +120,23 @@
   // ---------- 내 정보 (회원·권한 데이터는 members.js) ----------
   var me = GW.getCurrent();
   var profile = { name: me.name, title: me.title || "" };
+  // 사이드바·상단바 프로필(shell.js)과 인사말 갱신
   function renderProfile() {
-    var el = document.getElementById("sidebar-user-name");
-    if (el) el.textContent = (profile.name + " " + (profile.title || "")).trim();
-    var roleEl = document.getElementById("sidebar-user-role");
-    if (roleEl) {
-      roleEl.textContent = GW.roleLabel(me.role);
-      roleEl.className = "role-badge role-" + me.role;
-    }
-    var adminLink = document.getElementById("btn-admin");
-    if (adminLink) adminLink.hidden = !GW.isManager(me);
+    var nameEl = document.querySelector(".side-profile-name");
+    if (nameEl) nameEl.textContent = profile.name;
+    var roleEl = document.querySelector(".side-profile-role");
+    if (roleEl) roleEl.textContent = profile.title || "";
+    document.querySelectorAll(".side-me .avatar, #topbar-avatar").forEach(function (el) {
+      el.textContent = profile.name.charAt(0);
+    });
+    var greet = document.getElementById("dash-greeting");
+    if (greet) greet.textContent = profile.name + "님, " + greetingWord() + "!";
+  }
+  function greetingWord() {
+    var h = new Date().getHours();
+    if (h < 11) return "좋은 아침입니다";
+    if (h < 18) return "좋은 하루입니다";
+    return "오늘도 수고 많으셨습니다";
   }
   renderProfile();
 
@@ -379,43 +386,6 @@
     });
   }
 
-  // ---------- 업무 메뉴 카드: 메뉴 권한에 없는 등급이면 잠금 ----------
-  var menuPerms = GW.getPermissions();
-  document.querySelectorAll(".agent-card[data-agent]").forEach(function (card) {
-    if (GW.canAccess(card.dataset.agent, me)) return;
-    card.removeAttribute("href");
-    card.classList.remove("is-coming");
-    card.classList.add("is-locked");
-    card.setAttribute("aria-disabled", "true");
-    card.setAttribute("role", "link");
-    card.tabIndex = 0;
-    var badge = card.querySelector(".agent-card-badge");
-    if (!badge) {
-      badge = document.createElement("span");
-      badge.className = "agent-card-badge";
-      card.insertBefore(badge, card.firstChild);
-    }
-    badge.textContent = "🔒 권한 없음";
-    var allowed = (menuPerms[card.dataset.agent] || []).map(GW.roleLabel).join("·");
-    var notify = function (e) {
-      e.stopImmediatePropagation();
-      var title = card.querySelector(".agent-card-title");
-      showToast((title ? title.textContent : "이 메뉴") + "은(는) " + allowed + " 등급만 사용할 수 있습니다.");
-    };
-    card.addEventListener("click", notify);
-    card.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") notify(e);
-    });
-  });
-
-  // ---------- 업무 메뉴 카드 (준비 중 카드는 안내만) ----------
-  document.querySelectorAll(".agent-card.is-coming").forEach(function (card) {
-    card.addEventListener("click", function () {
-      var title = card.querySelector(".agent-card-title");
-      showToast((title ? title.textContent : "이 기능") + "은(는) 준비 중입니다.");
-    });
-  });
-
   // ---------- 업무 요청사항 (데이터 + 메인 목록 + 관리 팝업) ----------
   var workInstructionsListEl = document.getElementById("work-instructions-list");
   var workConfirmBtn = document.getElementById("work-instructions-confirm-btn");
@@ -660,7 +630,34 @@
   }
   function saveCalendarEvents() {
     try { localStorage.setItem(CALENDAR_EVENTS_KEY, JSON.stringify(calendarEvents)); } catch (e) {}
+    updateCalendarToggle();
   }
+  // ---------- 일정 드롭다운 (사이드바 맨 아래, 눌렀을 때만 캘린더 펼침) ----------
+  var CALENDAR_OPEN_KEY = STORAGE_PREFIX + "calendar-open";
+  var calendarToggle = document.getElementById("calendar-toggle");
+  var calendarPanel = document.getElementById("calendar-panel");
+  function setCalendarOpen(open) {
+    if (!calendarToggle || !calendarPanel) return;
+    calendarPanel.hidden = !open;
+    calendarToggle.setAttribute("aria-expanded", String(open));
+    calendarToggle.classList.toggle("is-open", open);
+    try { localStorage.setItem(CALENDAR_OPEN_KEY, open ? "1" : "0"); } catch (e) {}
+  }
+  function updateCalendarToggle() {
+    var sub = document.getElementById("calendar-toggle-sub");
+    if (!sub) return;
+    var t = new Date();
+    var count = (calendarEvents[todayIso()] || []).length;
+    sub.textContent = (t.getMonth() + 1) + "월 " + t.getDate() + "일 · " + (count ? "오늘 일정 " + count + "건" : "오늘 일정 없음");
+  }
+  if (calendarToggle) {
+    calendarToggle.addEventListener("click", function () {
+      setCalendarOpen(calendarPanel.hidden);
+    });
+    setCalendarOpen(localStorage.getItem(CALENDAR_OPEN_KEY) === "1");
+  }
+  updateCalendarToggle();
+
   function dateKey(y, m, d) {
     return y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
   }
@@ -925,7 +922,7 @@
       span.addEventListener("click", function () {
         var dateStr = this.dataset.date;
         selectCalendarDate(dateStr);
-        document.querySelectorAll(".sidebar-calendar-days .day-cell.selected").forEach(function (c) { c.classList.remove("selected"); });
+        document.querySelectorAll("#calendar-days .day-cell.selected").forEach(function (c) { c.classList.remove("selected"); });
         this.classList.add("selected");
         openCalendarEventModal(dateStr);
       });
@@ -981,7 +978,7 @@
   })();
 
   // ---------- 우측 메신저 ----------
-  var messengerPanel = document.querySelector(".sidebar-right");
+  var messengerPanel = document.querySelector(".messenger-panel");
   var btnMessengerToggle = document.getElementById("btn-messenger-toggle");
   var chatRoomTitle = document.getElementById("chat-room-title");
   var chatMessages = document.getElementById("chat-messages");
@@ -996,14 +993,9 @@
   function setMessengerCollapsed(collapsed) {
     if (!messengerPanel) return;
     messengerPanel.classList.toggle("collapsed", collapsed);
-    if (btnMessengerToggle) {
-      btnMessengerToggle.setAttribute("aria-label", collapsed ? "패널 펼치기" : "패널 접기");
-      btnMessengerToggle.setAttribute("aria-expanded", String(!collapsed));
-      btnMessengerToggle.textContent = collapsed ? "" : "◀";
-    }
+    if (btnMessengerToggle) btnMessengerToggle.setAttribute("aria-expanded", String(!collapsed));
   }
-  // 좁은 화면에서는 메신저를 접은 상태로 시작하고, 상단 '메시지' 버튼으로 연다
-  if (window.matchMedia("(max-width: 768px)").matches) setMessengerCollapsed(true);
+  setMessengerCollapsed(true);
   var btnMessengerOpen = document.getElementById("btn-messenger-open");
   if (btnMessengerOpen) {
     btnMessengerOpen.addEventListener("click", function () {
@@ -1281,6 +1273,8 @@
   }
 
   function refreshEfficiencyUI() {
+    renderDashboard();
+    if (window.GWShell) GWShell.refreshNotifications();
     var all = collectFocusItems();
     var urgentCount = all.filter(function (i) { return i.kind === "work" && i.type === "urgent"; }).length;
     var todayCount = all.filter(function (i) { return dueState(i.dueDate) === "today"; }).length;
@@ -1368,6 +1362,291 @@
           if (todoSec) todoSec.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       });
+    });
+  }
+
+  // ---------- 대시보드: KPI · 지출 차트 · 이슈 브리핑 ----------
+  var COST_KEY = STORAGE_PREFIX + "cost-v1";
+  var COST_CATEGORY_LABELS = {
+    payroll: "인건비", rent: "임차료·관리비", equipment: "장비·비품", software: "소프트웨어·구독",
+    marketing: "마케팅·광고", outsourcing: "외주·용역", professional: "세무·법무·등록", travel: "교통·출장",
+    welfare: "식대·복리후생", entertainment: "접대비", utility: "통신·공과금", etc: "기타"
+  };
+  var SERIES_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)"];
+  var chartTooltip = document.getElementById("chart-tooltip");
+  var ic = function (name) { return window.GWShell ? GWShell.icon(name, "icon-sm") : ""; };
+
+  function monthKeyOf(iso) { return String(iso || "").slice(0, 7); }
+  function shiftMonthKey(ym, delta) {
+    var d = new Date(parseInt(ym.slice(0, 4), 10), parseInt(ym.slice(5, 7), 10) - 1 + delta, 1);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+  function won(n) { return Math.round(n).toLocaleString("ko-KR") + "원"; }
+  function wonShort(n) {
+    var abs = Math.abs(n), sign = n < 0 ? "-" : "";
+    if (abs >= 100000000) return sign + (abs / 100000000).toFixed(abs >= 1000000000 ? 1 : 2).replace(/\.?0+$/, "") + "억";
+    if (abs >= 10000) return sign + Math.round(abs / 10000).toLocaleString("ko-KR") + "만";
+    return sign + Math.round(abs).toLocaleString("ko-KR");
+  }
+  function sumAmount(list) { return list.reduce(function (a, e) { return a + (e.amount || 0); }, 0); }
+
+  // 비용관리 데이터 요약 (cost/cost.html과 같은 기준: 최근 3개월 평균으로 런웨이 계산)
+  function costSnapshot() {
+    if (!GW.canAccess("cost", me)) return null;
+    var data = readJSON(COST_KEY, null) || { settings: {}, expenses: [] };
+    var expenses = Array.isArray(data.expenses) ? data.expenses : [];
+    var settings = data.settings || {};
+    var cm = monthKeyOf(todayIso());
+    var byMonth = function (ym) { return expenses.filter(function (e) { return monthKeyOf(e.date) === ym; }); };
+    var months = [];
+    for (var i = 5; i >= 0; i--) months.push(shiftMonthKey(cm, -i));
+    var monthly = months.map(function (ym) { var l = byMonth(ym); return { ym: ym, total: sumAmount(l), count: l.length }; });
+    var first = expenses.reduce(function (m, e) { return monthKeyOf(e.date) < m ? monthKeyOf(e.date) : m; }, cm);
+    if (settings.startDate && monthKeyOf(settings.startDate) < first) first = monthKeyOf(settings.startDate);
+    var burnMonths = [];
+    for (var j = 0; j < 3; j++) {
+      var ym = shiftMonthKey(cm, -j);
+      if (ym < first) break;
+      burnMonths.push(ym);
+    }
+    var burn = expenses.length && burnMonths.length ? burnMonths.reduce(function (a, ym) { return a + sumAmount(byMonth(ym)); }, 0) / burnMonths.length : 0;
+    var spent = sumAmount(expenses);
+    var capital = settings.capital || 0;
+    var current = byMonth(cm);
+    var cats = {};
+    current.forEach(function (e) { cats[e.category] = (cats[e.category] || 0) + (e.amount || 0); });
+    var budgets = settings.budgets || {};
+    return {
+      monthly: monthly,
+      current: sumAmount(current),
+      previous: sumAmount(byMonth(shiftMonthKey(cm, -1))),
+      capital: capital,
+      remaining: capital - spent,
+      burn: burn,
+      runway: capital > 0 && burn > 0 ? (capital - spent) / burn : null,
+      categories: Object.keys(cats).map(function (k) { return { label: COST_CATEGORY_LABELS[k] || k, value: cats[k] }; })
+        .sort(function (a, b) { return b.value - a.value; }),
+      overBudget: Object.keys(budgets).filter(function (k) { return budgets[k] && (cats[k] || 0) > budgets[k]; })
+        .map(function (k) { return COST_CATEGORY_LABELS[k] || k; }),
+      noEvidence: expenses.filter(function (e) { return e.evidence === "none"; }).length,
+      unsettled: sumAmount(expenses.filter(function (e) { return e.method === "personal" && !e.settled; }))
+    };
+  }
+
+  function kpiHtml(k) {
+    var tag = k.href ? "a" : "div";
+    return "<" + tag + ' class="kpi"' + (k.href ? ' href="' + k.href + '"' : "") + ">" +
+      '<span class="kpi-label">' + escapeHtml(k.label) + "</span>" +
+      '<div class="kpi-row"><span class="kpi-value"' + (k.title ? ' title="' + escapeHtml(k.title) + '"' : "") + ">" + escapeHtml(k.value) + "</span>" +
+      (k.delta ? '<span class="kpi-delta is-' + (k.tone || "neutral") + '">' + escapeHtml(k.delta) + "</span>" : "") + "</div>" +
+      '<span class="kpi-sub">' + escapeHtml(k.sub || "") + "</span></" + tag + ">";
+  }
+
+  function renderDashboard() {
+    var dateEl = document.getElementById("dash-date");
+    if (!dateEl) return;
+    var now = new Date();
+    dateEl.textContent = now.getFullYear() + "년 " + (now.getMonth() + 1) + "월 " + now.getDate() + "일 (" + "일월화수목금토".charAt(now.getDay()) + ") · 오늘 처리할 업무를 확인하세요.";
+
+    var openWork = workInstructionsData.filter(function (w) { return !w.done; });
+    var openTodo = todoData.filter(function (t) { return !t.done; });
+    var openAll = openWork.concat(openTodo);
+    var urgent = openWork.filter(function (w) { return w.type === "urgent"; }).length;
+    var overdue = openAll.filter(function (x) { return dueState(x.dueDate) === "overdue"; });
+    var dueToday = openAll.filter(function (x) { return dueState(x.dueDate) === "today"; }).length;
+    var cost = costSnapshot();
+
+    var kpis = [];
+    if (cost) {
+      var diff = cost.previous ? (cost.current - cost.previous) / cost.previous * 100 : null;
+      kpis.push({
+        label: "이번 달 지출", value: wonShort(cost.current) + "원", title: won(cost.current), href: "cost/cost.html",
+        delta: diff == null ? "" : (diff >= 0 ? "↑ " : "↓ ") + Math.abs(diff).toFixed(1) + "%",
+        tone: diff == null ? "neutral" : diff > 0 ? "bad" : "good",
+        sub: cost.previous ? "전월 " + wonShort(cost.previous) + "원 대비" : "전월 지출 없음"
+      });
+      if (cost.capital > 0) {
+        kpis.push({
+          label: "남은 자금", value: wonShort(cost.remaining) + "원", title: won(cost.remaining), href: "cost/cost.html",
+          delta: cost.runway == null ? "" : "런웨이 " + (cost.runway >= 99 ? "99+" : cost.runway.toFixed(1)) + "개월",
+          tone: cost.runway == null ? "neutral" : cost.runway < 3 ? "bad" : cost.runway < 6 ? "neutral" : "good",
+          sub: "월평균 지출 " + wonShort(cost.burn) + "원 (최근 3개월)"
+        });
+      } else {
+        kpis.push({ label: "남은 자금", value: "미설정", href: "cost/cost.html", sub: "비용관리에서 초기 자금을 설정하세요" });
+      }
+    } else {
+      kpis.push({ label: "오늘 마감", value: dueToday + "건", sub: "업무 요청 · 할 일 합계" });
+      kpis.push({ label: "기한 지남", value: overdue.length + "건", delta: overdue.length ? "확인 필요" : "", tone: "bad", sub: "업무 요청 · 할 일 합계" });
+    }
+    kpis.push({
+      label: "미완료 업무 요청", value: openWork.length + "건",
+      delta: urgent ? "긴급 " + urgent : "", tone: "bad",
+      sub: "전체 " + workInstructionsData.length + "건 중"
+    });
+    kpis.push({
+      label: "남은 할 일", value: openTodo.length + "건",
+      delta: overdue.length ? "기한 지남 " + overdue.length : "", tone: "bad",
+      sub: "오늘 마감 " + dueToday + "건"
+    });
+    document.getElementById("dash-kpis").innerHTML = kpis.map(kpiHtml).join("");
+
+    document.getElementById("dash-charts").hidden = !cost;
+    if (cost) {
+      renderTrendChart(cost);
+      renderDonut(cost);
+    }
+    renderBriefing(cost, overdue, urgent, dueToday);
+  }
+
+  function showChartTip(target, html) {
+    if (!chartTooltip) return;
+    chartTooltip.innerHTML = html;
+    chartTooltip.hidden = false;
+    var r = target.getBoundingClientRect();
+    var tw = chartTooltip.offsetWidth;
+    chartTooltip.style.left = Math.max(8, Math.min(window.innerWidth - tw - 8, r.left + r.width / 2 - tw / 2)) + "px";
+    chartTooltip.style.top = Math.max(8, r.top - chartTooltip.offsetHeight - 8) + "px";
+  }
+  function hideChartTip() { if (chartTooltip) chartTooltip.hidden = true; }
+  function bindTip(el, html) {
+    el.addEventListener("mouseenter", function () { showChartTip(el, html); });
+    el.addEventListener("focus", function () { showChartTip(el, html); });
+    el.addEventListener("mouseleave", hideChartTip);
+    el.addEventListener("blur", hideChartTip);
+  }
+  // 축 최댓값을 보기 좋은 단위(1·2·2.5·5×10ⁿ)의 4배로 올림
+  function niceMax(v) {
+    var rough = v / 4;
+    var pow = Math.pow(10, Math.floor(Math.log10(rough)));
+    var step = [1, 2, 2.5, 5, 10].map(function (m) { return m * pow; }).filter(function (x) { return x >= rough; })[0];
+    return step * 4;
+  }
+
+  function renderTrendChart(cost) {
+    var host = document.getElementById("dash-trend");
+    var legend = document.getElementById("dash-trend-legend");
+    var max = Math.max.apply(null, cost.monthly.map(function (m) { return m.total; }));
+    if (!max) {
+      legend.innerHTML = "";
+      host.innerHTML = '<div class="chart-empty">' + ic("chart") + "<span>지출을 입력하면 최근 6개월 추이가 표시됩니다.</span>" +
+        '<a class="btn-secondary" href="cost/cost.html">비용관리에서 지출 입력</a></div>';
+      return;
+    }
+    legend.innerHTML = '<span><i class="legend-swatch" style="background:var(--series-1)"></i>이번 달</span>' +
+      '<span><i class="legend-swatch" style="background:var(--series-soft)"></i>이전 달</span>';
+    var top = niceMax(max);
+    var cols = "repeat(" + cost.monthly.length + ", minmax(0, 1fr))";
+    var ticks = [0, 1, 2, 3, 4];
+    var cm = monthKeyOf(todayIso());
+    host.innerHTML =
+      '<div class="bar-chart" role="img" aria-label="최근 6개월 월별 지출">' +
+      '<div class="bar-axis" style="margin-bottom:24px">' + ticks.map(function (t) {
+        return '<span style="bottom:' + (t * 25) + '%">' + (t ? wonShort(top * t / 4) : "0") + "</span>";
+      }).join("") + "</div>" +
+      '<div class="bar-plot"><div class="bar-grid">' + ticks.map(function (t) {
+        return '<span class="' + (t ? "" : "is-base") + '" style="bottom:' + (t * 25) + '%"></span>';
+      }).join("") + "</div>" +
+      '<div class="bar-cols" style="grid-template-columns:' + cols + '">' + cost.monthly.map(function (m, i) {
+        var h = m.total ? Math.max(1.5, m.total / top * 100) : 0;
+        var isCur = m.ym === cm;
+        // 값 라벨은 이번 달 막대에만 (선택적 직접 라벨)
+        return '<div class="bar-col" tabindex="0" data-i="' + i + '">' +
+          '<span class="bar' + (isCur ? " is-current" : "") + '" style="height:' + h.toFixed(1) + '%">' +
+          (isCur && m.total ? '<span class="bar-value">' + wonShort(m.total) + "</span>" : "") + "</span></div>";
+      }).join("") + "</div>" +
+      '<div class="bar-labels" style="grid-template-columns:' + cols + '">' + cost.monthly.map(function (m) {
+        return "<span>" + parseInt(m.ym.slice(5), 10) + "월</span>";
+      }).join("") + "</div></div></div>";
+    host.querySelectorAll(".bar-col").forEach(function (col) {
+      var m = cost.monthly[Number(col.dataset.i)];
+      bindTip(col, "<strong>" + m.ym.replace("-", "년 ") + "월</strong><br>" + won(m.total) + " · " + m.count + "건");
+    });
+  }
+
+  function renderDonut(cost) {
+    var host = document.getElementById("dash-donut");
+    if (!cost.current) {
+      host.innerHTML = '<div class="chart-empty">' + ic("wallet") + "<span>이번 달 지출이 아직 없습니다.</span></div>";
+      return;
+    }
+    // 상위 4개 분류 + 나머지는 '그 외'로 묶음 (색은 순서 고정)
+    var slices = cost.categories.slice(0, 4).map(function (c, i) { return { label: c.label, value: c.value, color: SERIES_COLORS[i] }; });
+    var rest = cost.categories.slice(4).reduce(function (a, c) { return a + c.value; }, 0);
+    if (rest) slices.push({ label: "그 외", value: rest, color: "var(--series-other)" });
+    var total = cost.current;
+    var gap = slices.length > 1 ? 0.8 : 0;
+    var offset = 0;
+    var circles = slices.map(function (sl, i) {
+      var pct = sl.value / total * 100;
+      var len = Math.max(0, pct - gap);
+      var c = '<circle cx="21" cy="21" r="15.915" fill="none" stroke="' + sl.color + '" stroke-width="6" stroke-dasharray="' +
+        len.toFixed(3) + " " + (100 - len).toFixed(3) + '" stroke-dashoffset="' + (-offset).toFixed(3) + '" data-i="' + i + '" tabindex="0"></circle>';
+      offset += pct;
+      return c;
+    }).join("");
+    host.innerHTML = '<div class="donut-wrap"><div class="donut"><svg viewBox="0 0 42 42" role="img" aria-label="이번 달 분류별 지출 비율">' +
+      '<circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--muted-bg)" stroke-width="6"></circle>' + circles + "</svg>" +
+      '<div class="donut-center"><span>이번 달 합계</span><strong>' + wonShort(total) + "원</strong></div></div>" +
+      '<ul class="donut-legend">' + slices.map(function (sl) {
+        return '<li><i class="legend-swatch" style="background:' + sl.color + '"></i><span class="legend-name">' + escapeHtml(sl.label) + "</span>" +
+          '<span class="legend-value">' + wonShort(sl.value) + "원</span>" +
+          '<span class="legend-pct">' + Math.round(sl.value / total * 100) + "%</span></li>";
+      }).join("") + "</ul></div>";
+    host.querySelectorAll("circle[data-i]").forEach(function (c) {
+      var sl = slices[Number(c.dataset.i)];
+      bindTip(c, "<strong>" + escapeHtml(sl.label) + "</strong><br>" + won(sl.value) + " · " + Math.round(sl.value / total * 100) + "%");
+    });
+  }
+
+  function renderBriefing(cost, overdue, urgent, dueToday) {
+    var host = document.getElementById("dash-brief");
+    if (!host) return;
+    var items = [];
+    if (overdue.length) items.push({ tone: "danger", icon: "alert", title: "기한이 지난 업무 " + overdue.length + "건", text: overdue[0].text + (overdue.length > 1 ? " 외 " + (overdue.length - 1) + "건" : ""), focus: "overdue" });
+    if (urgent) items.push({ tone: "danger", icon: "alert", title: "긴급 업무 요청 " + urgent + "건", text: "다른 업무보다 먼저 처리하세요.", focus: "urgent" });
+    if (cost) {
+      if (cost.runway != null && cost.runway < 6) {
+        var end = new Date();
+        end.setMonth(end.getMonth() + Math.floor(cost.runway));
+        items.push({ tone: cost.runway < 3 ? "danger" : "warning", icon: "wallet", title: "런웨이 " + cost.runway.toFixed(1) + "개월", text: "현재 지출 속도면 " + end.getFullYear() + "년 " + (end.getMonth() + 1) + "월경 자금이 소진됩니다.", href: "cost/cost.html" });
+      }
+      if (cost.previous && cost.current > cost.previous * 1.2) {
+        items.push({ tone: "warning", icon: "chart", title: "이번 달 지출 " + Math.round((cost.current / cost.previous - 1) * 100) + "% 증가", text: "가장 큰 분류: " + (cost.categories[0] ? cost.categories[0].label + " " + wonShort(cost.categories[0].value) + "원" : "—"), href: "cost/cost.html" });
+      }
+      if (cost.overBudget.length) items.push({ tone: "danger", icon: "alert", title: "예산 초과 분류", text: cost.overBudget.join(", "), href: "cost/cost.html" });
+      if (cost.noEvidence) items.push({ tone: "warning", icon: "receipt", title: "증빙 미수취 " + cost.noEvidence + "건", text: "세금계산서·영수증을 챙겨 비용 인정을 받으세요.", href: "cost/cost.html" });
+      if (cost.unsettled) items.push({ tone: "info", icon: "wallet", title: "개인결제 미정산 " + wonShort(cost.unsettled) + "원", text: "대표 개인 카드로 낸 비용을 정산하세요.", href: "cost/cost.html" });
+    }
+    var todaysEvents = ((calendarEvents || {})[todayIso()] || []).slice().sort(function (a, b) { return String(a.startTime).localeCompare(String(b.startTime)); });
+    if (todaysEvents.length) items.push({ tone: "info", icon: "clock", title: "오늘 일정 " + todaysEvents.length + "건", text: (todaysEvents[0].startTime || "") + " " + todaysEvents[0].title });
+    if (!items.length && dueToday) items.push({ tone: "info", icon: "clock", title: "오늘 마감 " + dueToday + "건", text: "오늘 안에 처리할 업무가 있습니다.", focus: "today" });
+    if (!items.length) items.push({ tone: "success", icon: "check", title: "확인이 필요한 이슈가 없습니다", text: "급한 업무와 비용 이슈가 모두 정리되어 있어요." });
+
+    host.innerHTML = items.slice(0, 4).map(function (it) {
+      var inner = '<span class="brief-icon tone-' + it.tone + '">' + ic(it.icon) + "</span>" +
+        '<span class="brief-body"><span class="brief-title">' + escapeHtml(it.title) + '</span><span class="brief-text">' + escapeHtml(it.text) + "</span></span>";
+      if (it.href) return '<li><a class="brief-item" href="' + it.href + '">' + inner + "</a></li>";
+      if (it.focus) return '<li><a class="brief-item" href="#today-focus" data-focus-target="' + it.focus + '">' + inner + "</a></li>";
+      return '<li><div class="brief-item">' + inner + "</div></li>";
+    }).join("");
+    host.querySelectorAll("[data-focus-target]").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        var chip = focusChips && focusChips.querySelector('[data-focus="' + a.dataset.focusTarget + '"]');
+        if (chip) chip.click();
+        var focusSec = document.getElementById("today-focus");
+        if (focusSec) focusSec.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+  }
+
+  var dashAddTodo = document.getElementById("btn-dash-add-todo");
+  if (dashAddTodo) {
+    dashAddTodo.addEventListener("click", function () {
+      if (!todoQuickInput) return;
+      todoQuickInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      todoQuickInput.focus();
     });
   }
 
@@ -1508,6 +1787,8 @@
         saveWorkInstructions();
         saveCalendarEvents();
         saveChatHistory();
+        writeJSON(STORAGE_PREFIX + "receipts", []);
+        writeJSON(STORAGE_PREFIX + "projects", []);
         document.querySelectorAll(".messenger-room .room-badge").forEach(function (b) { b.remove(); });
         document.querySelectorAll(".messenger-room .room-preview").forEach(function (p) { p.textContent = ""; });
         renderMainWorkList();
@@ -1618,4 +1899,14 @@
   renderMainWorkList();
   renderMainTodoList();
   refreshEfficiencyUI();
+
+  // 다른 화면에서 넘어온 요청 처리 (?q= 검색, ?account=1, ?chat=1)
+  var params = new URLSearchParams(location.search);
+  if (params.get("q") && globalSearch) {
+    globalSearch.value = params.get("q");
+    globalSearch.dispatchEvent(new Event("input"));
+  }
+  if (params.get("account") && btnAccount) btnAccount.click();
+  if (params.get("chat")) setMessengerCollapsed(false);
+  if (params.toString()) history.replaceState(null, "", location.pathname);
 })();

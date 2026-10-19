@@ -31,7 +31,7 @@
     { id: "cost", label: "비용관리", href: "cost/cost.html", defaultRoles: ["master", "admin"] },
     { id: "sales", label: "프로젝트 관리", href: "sales/sales.html", defaultRoles: ALL_ROLES },
     { id: "meeting", label: "회의록", defaultRoles: ALL_ROLES },
-    { id: "receipt", label: "전표관리", defaultRoles: ALL_ROLES },
+    { id: "receipt", label: "전표관리", href: "receipt/receipt.html", defaultRoles: ALL_ROLES },
     { id: "approval", label: "업무결재", defaultRoles: ALL_ROLES },
     { id: "finance", label: "재무관리", defaultRoles: ["master", "admin"] },
     { id: "document", label: "문서관리", defaultRoles: ALL_ROLES }
@@ -229,7 +229,9 @@
     var me = getCurrent();
     var label = menuId === "admin" ? "관리자 페이지" : ((MENUS.filter(function (m) { return m.id === menuId; })[0] || {}).label || "이 화면");
     var allowedRoles = menuId === "admin" ? ADMIN_PAGE_ROLES : (getPermissions()[menuId] || ALL_ROLES);
-    document.body.innerHTML =
+    // 공통 레이아웃(shell.js)이 있으면 콘텐츠 영역만 바꿔 내비게이션은 유지
+    var target = document.getElementById("layout-content") || document.body;
+    target.innerHTML =
       '<div class="access-denied">' +
       '<div class="access-denied-box">' +
       '<span class="access-denied-icon" aria-hidden="true">🔒</span>' +
@@ -237,7 +239,7 @@
       "<p></p>" +
       '<a class="btn-primary" href="' + homeHref + '">홈으로 돌아가기</a>' +
       "</div></div>";
-    document.body.querySelector("p").textContent =
+    target.querySelector(".access-denied p").textContent =
       label + "은(는) " + allowedRoles.map(roleLabel).join("·") + " 등급만 이용할 수 있습니다. 현재 사용자: " + me.name + " (" + roleLabel(me.role) + "). 권한이 필요하면 마스터에게 요청하세요.";
     document.title = "접근 제한 - AI 그룹웨어";
     return false;
