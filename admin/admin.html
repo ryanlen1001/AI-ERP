@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 - AI 그룹웨어</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../agent.css">
+</head>
+<body>
+    <div class="agent-page admin-page">
+        <header class="agent-page-header">
+            <div class="admin-title-wrap">
+                <h1 class="agent-page-title">관리자</h1>
+                <span class="admin-title-sub" id="admin-me"></span>
+            </div>
+            <div class="agent-page-header-actions">
+                <a href="../index.html" class="agent-page-home-btn">홈으로 돌아가기</a>
+            </div>
+        </header>
+
+        <main class="agent-page-body admin-body">
+            <p class="admin-notice">회원·권한 정보는 이 브라우저에만 저장되며, 같은 기기 안에서 역할을 구분하는 용도입니다. 실제 로그인·보안 기능은 서버가 연결되어야 제공할 수 있습니다.</p>
+
+            <section class="admin-kpis" aria-label="회원 현황">
+                <div class="admin-kpi"><span class="admin-kpi-label">전체 회원</span><span class="admin-kpi-value" id="kpi-total">0</span></div>
+                <div class="admin-kpi"><span class="admin-kpi-label">마스터</span><span class="admin-kpi-value" id="kpi-master">0</span></div>
+                <div class="admin-kpi"><span class="admin-kpi-label">관리자</span><span class="admin-kpi-value" id="kpi-admin">0</span></div>
+                <div class="admin-kpi"><span class="admin-kpi-label">일반</span><span class="admin-kpi-value" id="kpi-member">0</span></div>
+                <div class="admin-kpi"><span class="admin-kpi-label">비활성</span><span class="admin-kpi-value" id="kpi-inactive">0</span></div>
+            </section>
+
+            <nav class="admin-tabs" role="tablist" aria-label="관리 메뉴">
+                <button type="button" class="admin-tab is-active" role="tab" aria-selected="true" aria-controls="panel-members" id="tab-members">회원 관리</button>
+                <button type="button" class="admin-tab" role="tab" aria-selected="false" aria-controls="panel-perms" id="tab-perms" tabindex="-1">메뉴 권한</button>
+                <button type="button" class="admin-tab" role="tab" aria-selected="false" aria-controls="panel-data" id="tab-data" tabindex="-1">데이터</button>
+                <button type="button" class="admin-tab" role="tab" aria-selected="false" aria-controls="panel-log" id="tab-log" tabindex="-1">변경 이력</button>
+            </nav>
+
+            <!-- 회원 관리 -->
+            <section class="admin-card" id="panel-members" role="tabpanel" aria-labelledby="tab-members">
+                <form class="admin-add-form" id="member-add-form" autocomplete="off">
+                    <input type="text" id="add-name" maxlength="20" placeholder="이름" aria-label="이름" required>
+                    <input type="text" id="add-title" maxlength="20" placeholder="직급 (예: 대리)" aria-label="직급">
+                    <select id="add-role" aria-label="등급"></select>
+                    <button type="submit" class="btn-primary">회원 추가</button>
+                </form>
+                <div class="admin-filters">
+                    <input type="search" id="member-search" placeholder="이름·직급 검색" aria-label="회원 검색">
+                    <div class="list-filter-tabs" id="member-role-filter" role="group" aria-label="권한 필터">
+                        <button type="button" class="list-filter-tab is-active" data-role="" aria-pressed="true">전체</button>
+                        <button type="button" class="list-filter-tab" data-role="master" aria-pressed="false">마스터</button>
+                        <button type="button" class="list-filter-tab" data-role="admin" aria-pressed="false">관리자</button>
+                        <button type="button" class="list-filter-tab" data-role="member" aria-pressed="false">일반</button>
+                        <button type="button" class="list-filter-tab" data-role="inactive" aria-pressed="false">비활성</button>
+                    </div>
+                </div>
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">이름</th>
+                                <th scope="col">직급</th>
+                                <th scope="col">등급</th>
+                                <th scope="col">상태</th>
+                                <th scope="col"><span class="sr-only">작업</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="member-tbody"></tbody>
+                    </table>
+                </div>
+                <p class="admin-help" id="member-help"></p>
+            </section>
+
+            <!-- 메뉴 권한 -->
+            <section class="admin-card" id="panel-perms" role="tabpanel" aria-labelledby="tab-perms" hidden>
+                <p class="admin-help" id="perm-help"></p>
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-perm-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">메뉴</th>
+                                <th scope="col" class="center">마스터</th>
+                                <th scope="col" class="center">관리자</th>
+                                <th scope="col" class="center">일반</th>
+                            </tr>
+                        </thead>
+                        <tbody id="perm-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 데이터 -->
+            <section class="admin-card" id="panel-data" role="tabpanel" aria-labelledby="tab-data" hidden>
+                <div class="admin-data-actions">
+                    <button type="button" class="btn-primary" id="data-backup">전체 백업 다운로드</button>
+                    <button type="button" class="btn-secondary" id="data-restore" data-master-only>백업 복원</button>
+                    <input type="file" id="data-restore-file" accept="application/json,.json" hidden>
+                </div>
+                <h2 class="admin-section-title">저장된 데이터</h2>
+                <ul class="admin-storage-list" id="storage-list"></ul>
+                <p class="admin-help" id="data-help" hidden>백업 복원과 전체 초기화는 마스터만 할 수 있습니다.</p>
+                <div class="admin-danger" data-master-only>
+                    <h2 class="admin-section-title">전체 초기화</h2>
+                    <p class="admin-help">회원·업무·할 일·일정·메시지·비용 데이터를 모두 삭제하고 처음 상태로 되돌립니다. 되돌릴 수 없으니 먼저 백업하세요.</p>
+                    <div class="admin-danger-row">
+                        <input type="text" id="reset-confirm" placeholder="'초기화' 입력" aria-label="확인 문구 입력">
+                        <button type="button" class="btn-danger" id="data-reset" disabled>전체 초기화</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 변경 이력 -->
+            <section class="admin-card" id="panel-log" role="tabpanel" aria-labelledby="tab-log" hidden>
+                <ul class="admin-log-list" id="log-list"></ul>
+            </section>
+        </main>
+    </div>
+
+    <div class="app-toast" id="app-toast" role="status" aria-live="polite" hidden>
+        <span id="app-toast-text"></span>
+        <button type="button" class="app-toast-action" id="app-toast-action" hidden>실행취소</button>
+    </div>
+
+    <script src="../members.js"></script>
+    <script>
+    (function () {
+        if (!GW.guardPage("admin", "../index.html")) return;
+
+        var me = GW.getCurrent();
+        var amMaster = GW.isMaster(me);
+        document.getElementById("admin-me").textContent = me.name + " " + (me.title || "") + " · " + GW.roleLabel(me.role);
+        // 마스터 전용 기능은 관리자에게 숨김
+        if (!amMaster) {
+            document.querySelectorAll("[data-master-only]").forEach(function (el) { el.hidden = true; });
+            document.getElementById("data-help").hidden = false;
+        }
+        document.getElementById("member-help").textContent = amMaster
+            ? "이름·직급은 칸을 수정하면 바로 저장됩니다. 마스터는 최소 1명 이상 있어야 하며, 본인 계정은 비활성화·삭제할 수 없습니다."
+            : "관리자는 일반 회원만 추가·수정·비활성화·삭제할 수 있습니다. 등급 변경은 마스터만 가능합니다.";
+        document.getElementById("perm-help").textContent = amMaster
+            ? "메뉴마다 접근할 수 있는 등급을 체크하세요. 체크하지 않은 등급에게는 메인 화면에 잠금 표시가 나오고 화면에 들어갈 수 없습니다. 마스터는 항상 모든 메뉴에 접근할 수 있습니다."
+            : "현재 메뉴별 접근 등급입니다. 변경은 마스터만 할 수 있습니다.";
+
+        function escapeHtml(s) {
+            var div = document.createElement("div");
+            div.textContent = s == null ? "" : String(s);
+            return div.innerHTML;
+        }
+
+        // ---------- 토스트 ----------
+        var toast = document.getElementById("app-toast");
+        var toastText = document.getElementById("app-toast-text");
+        var toastAction = document.getElementById("app-toast-action");
+        var toastTimer = null, toastUndo = null;
+        function showToast(text, undo) {
+            toastText.textContent = text;
+            toastUndo = undo || null;
+            toastAction.hidden = !undo;
+            toast.hidden = false;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(function () { toast.hidden = true; toastUndo = null; }, undo ? 6000 : 3000);
+        }
+        toastAction.addEventListener("click", function () {
+            if (toastUndo) toastUndo();
+            toastUndo = null;
+            toast.hidden = true;
+        });
+
+        // ---------- 탭 ----------
+        var tabs = Array.prototype.slice.call(document.querySelectorAll(".admin-tab"));
+        function selectTab(tab) {
+            tabs.forEach(function (t) {
+                var on = t === tab;
+                t.classList.toggle("is-active", on);
+                t.setAttribute("aria-selected", String(on));
+                t.tabIndex = on ? 0 : -1;
+                document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+            });
+            if (tab.id === "tab-data") renderStorage();
+            if (tab.id === "tab-log") renderLog();
+        }
+        tabs.forEach(function (tab, i) {
+            tab.addEventListener("click", function () { selectTab(tab); });
+            tab.addEventListener("keydown", function (e) {
+                var next = e.key === "ArrowRight" ? tabs[(i + 1) % tabs.length] : e.key === "ArrowLeft" ? tabs[(i - 1 + tabs.length) % tabs.length] : null;
+                if (next) {
+                    e.preventDefault();
+                    selectTab(next);
+                    next.focus();
+                }
+            });
+        });
+
+        // ---------- 회원 관리 ----------
+        var members = GW.getMembers();
+        var roleFilter = "";
+        var searchInput = document.getElementById("member-search");
+
+        function persist() {
+            GW.saveMembers(members);
+            renderKpis();
+        }
+
+        function renderKpis() {
+            var active = members.filter(function (m) { return m.active !== false; });
+            document.getElementById("kpi-total").textContent = members.length;
+            document.getElementById("kpi-master").textContent = active.filter(function (m) { return m.role === "master"; }).length;
+            document.getElementById("kpi-admin").textContent = active.filter(function (m) { return m.role === "admin"; }).length;
+            document.getElementById("kpi-member").textContent = active.filter(function (m) { return m.role === "member"; }).length;
+            document.getElementById("kpi-inactive").textContent = members.length - active.length;
+        }
+
+        function renderMembers() {
+            var q = searchInput.value.trim().toLowerCase();
+            var list = members.filter(function (m) {
+                if (roleFilter === "inactive" && m.active !== false) return false;
+                if (roleFilter && roleFilter !== "inactive" && (m.role !== roleFilter || m.active === false)) return false;
+                if (q && (m.name + " " + (m.title || "")).toLowerCase().indexOf(q) === -1) return false;
+                return true;
+            }).sort(function (a, b) {
+                if (a.role !== b.role) return GW.roleLevel(b.role) - GW.roleLevel(a.role);
+                return a.name.localeCompare(b.name, "ko");
+            });
+            var tbody = document.getElementById("member-tbody");
+            if (!list.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="list-empty">조건에 맞는 회원이 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = list.map(function (m) {
+                var isMe = m.id === me.id;
+                var inactive = m.active === false;
+                var editable = canEdit(m);
+                var manageable = editable && !isMe;
+                return '<tr data-id="' + m.id + '"' + (inactive ? ' class="is-inactive"' : "") + ">" +
+                    '<td><div class="admin-name-cell"><input type="text" class="admin-inline-input" data-field="name" value="' + escapeHtml(m.name) + '" maxlength="20" aria-label="이름"' + (editable ? "" : " readonly") + ">" +
+                    (isMe ? '<span class="admin-me-tag">나</span>' : "") + "</div></td>" +
+                    '<td><input type="text" class="admin-inline-input" data-field="title" value="' + escapeHtml(m.title || "") + '" maxlength="20" aria-label="' + escapeHtml(m.name) + ' 직급" placeholder="—"' + (editable ? "" : " readonly") + "></td>" +
+                    '<td><select class="admin-role-select role-' + m.role + '" data-field="role" aria-label="' + escapeHtml(m.name) + ' 등급"' + (amMaster ? "" : " disabled") + ">" +
+                    GW.ROLES.map(function (r) { return '<option value="' + r.id + '"' + (r.id === m.role ? " selected" : "") + ">" + r.label + "</option>"; }).join("") +
+                    "</select></td>" +
+                    '<td><button type="button" class="admin-status ' + (inactive ? "is-off" : "is-on") + '" data-action="toggle"' + (manageable ? "" : " disabled") + ">" + (inactive ? "비활성" : "활성") + "</button></td>" +
+                    '<td class="admin-actions">' +
+                    (manageable ? '<button type="button" class="cost-link-btn is-danger" data-action="delete">삭제</button>' : "") +
+                    "</td></tr>";
+            }).join("");
+        }
+
+        function memberById(id) {
+            return members.filter(function (m) { return m.id === id; })[0];
+        }
+        // 마스터는 모두, 관리자는 일반 회원과 본인 이름·직급만 수정 가능
+        function canEdit(target) {
+            if (amMaster) return true;
+            return target.role === "member" || target.id === me.id;
+        }
+        // 활성 마스터가 0명이 되는 변경은 막는다
+        function wouldRemoveLastMaster(target, change) {
+            if (target.role !== "master" || target.active === false) return false;
+            var after = change.deleted
+                ? members.filter(function (m) { return m !== target; })
+                : members.map(function (m) { return m === target ? Object.assign({}, m, change) : m; });
+            return GW.countRole("master", after) === 0;
+        }
+        var LAST_MASTER_MSG = "마스터는 최소 1명 이상 있어야 합니다.";
+
+        var tbody = document.getElementById("member-tbody");
+        tbody.addEventListener("change", function (e) {
+            var row = e.target.closest("tr[data-id]");
+            if (!row) return;
+            var m = memberById(row.dataset.id);
+            var field = e.target.dataset.field;
+            if (!m || !field || !canEdit(m)) return;
+            if (field === "role") {
+                var role = e.target.value;
+                if (!amMaster) {
+                    e.target.value = m.role;
+                    return;
+                }
+                if (wouldRemoveLastMaster(m, { role: role })) {
+                    e.target.value = m.role;
+                    showToast(LAST_MASTER_MSG);
+                    return;
+                }
+                if (m.id === me.id && !confirm("본인의 등급을 " + GW.roleLabel(role) + "(으)로 낮추면 마스터 기능을 더 이상 쓸 수 없습니다. 계속할까요?")) {
+                    e.target.value = m.role;
+                    return;
+                }
+                var prevRole = m.role;
+                m.role = role;
+                persist();
+                GW.log("등급 변경", m.name + ": " + GW.roleLabel(prevRole) + " → " + GW.roleLabel(role));
+                if (m.id === me.id) {
+                    // 본인 등급이 바뀌면 화면 권한을 다시 적용
+                    location.href = role === "member" ? "../index.html" : "admin.html";
+                    return;
+                }
+                renderMembers();
+                showToast(m.name + "님의 등급을 " + GW.roleLabel(role) + "(으)로 변경했습니다.");
+            } else {
+                var value = e.target.value.trim();
+                if (field === "name" && !value) {
+                    e.target.value = m.name;
+                    showToast("이름은 비워둘 수 없습니다.");
+                    return;
+                }
+                if (field === "name" && members.some(function (x) { return x !== m && x.name === value; })) {
+                    e.target.value = m.name;
+                    showToast("같은 이름의 회원이 이미 있습니다.");
+                    return;
+                }
+                var prev = m[field] || "";
+                if (prev === value) return;
+                m[field] = value;
+                persist();
+                GW.log(field === "name" ? "이름 변경" : "직급 변경", (field === "name" ? prev + " → " + value : m.name + ": " + (prev || "—") + " → " + (value || "—")));
+                showToast("저장했습니다.");
+            }
+        });
+        tbody.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && e.target.classList.contains("admin-inline-input")) e.target.blur();
+        });
+        tbody.addEventListener("click", function (e) {
+            var btn = e.target.closest("button[data-action]");
+            if (!btn) return;
+            var row = btn.closest("tr[data-id]");
+            var m = memberById(row.dataset.id);
+            if (!m || m.id === me.id || !canEdit(m)) return;
+            if (btn.dataset.action === "toggle") {
+                var nextActive = m.active === false;
+                if (!nextActive && wouldRemoveLastMaster(m, { active: false })) {
+                    showToast(LAST_MASTER_MSG);
+                    return;
+                }
+                m.active = nextActive;
+                persist();
+                GW.log(nextActive ? "활성화" : "비활성화", m.name);
+                renderMembers();
+            } else if (btn.dataset.action === "delete") {
+                if (wouldRemoveLastMaster(m, { deleted: true })) {
+                    showToast(LAST_MASTER_MSG);
+                    return;
+                }
+                var idx = members.indexOf(m);
+                members.splice(idx, 1);
+                persist();
+                GW.log("회원 삭제", m.name + " (" + GW.roleLabel(m.role) + ")");
+                renderMembers();
+                showToast(m.name + "님을 삭제했습니다.", function () {
+                    members.splice(idx, 0, m);
+                    persist();
+                    GW.log("삭제 취소", m.name);
+                    renderMembers();
+                });
+            }
+        });
+
+        document.getElementById("member-add-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            var nameInput = document.getElementById("add-name");
+            var name = nameInput.value.trim();
+            if (!name) return;
+            if (members.some(function (m) { return m.name === name; })) {
+                showToast("같은 이름의 회원이 이미 있습니다.");
+                nameInput.focus();
+                return;
+            }
+            var role = amMaster ? document.getElementById("add-role").value : "member";
+            var member = {
+                id: "m-" + Date.now().toString(36),
+                name: name,
+                title: document.getElementById("add-title").value.trim(),
+                role: role,
+                active: true,
+                createdAt: Date.now()
+            };
+            members.push(member);
+            persist();
+            GW.log("회원 추가", name + " (" + GW.roleLabel(role) + ")");
+            renderMembers();
+            nameInput.value = "";
+            document.getElementById("add-title").value = "";
+            document.getElementById("add-role").value = "member";
+            nameInput.focus();
+            showToast(name + "님을 " + GW.roleLabel(role) + " 등급으로 추가했습니다.");
+        });
+
+        // 추가 가능한 등급: 마스터는 전부, 관리자는 일반만
+        document.getElementById("add-role").innerHTML = GW.ROLES.slice().reverse().filter(function (r) {
+            return amMaster || r.id === "member";
+        }).map(function (r) {
+            return '<option value="' + r.id + '">' + r.label + "</option>";
+        }).join("");
+
+        searchInput.addEventListener("input", renderMembers);
+        var roleTabs = document.querySelectorAll("#member-role-filter .list-filter-tab");
+        roleTabs.forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                roleTabs.forEach(function (t) {
+                    t.classList.toggle("is-active", t === tab);
+                    t.setAttribute("aria-pressed", String(t === tab));
+                });
+                roleFilter = tab.dataset.role;
+                renderMembers();
+            });
+        });
+
+        // ---------- 메뉴 권한 ----------
+        var PERM_ROLES = ["master", "admin", "member"];
+        function permCell(menuId, role, checked, locked) {
+            var label = GW.roleLabel(role);
+            return '<td class="center"><input type="checkbox" class="admin-perm-check" data-menu="' + menuId + '" data-role="' + role + '"' +
+                (checked ? " checked" : "") + (locked ? " disabled" : "") + ' aria-label="' + label + ' 접근 허용"></td>';
+        }
+        function renderPerms() {
+            var perms = GW.getPermissions();
+            var rows = GW.MENUS.map(function (menu) {
+                var roles = perms[menu.id];
+                return '<tr><th scope="row">' + escapeHtml(menu.label) + (menu.href ? "" : ' <span class="admin-perm-tag">준비 중</span>') + "</th>" +
+                    PERM_ROLES.map(function (role) {
+                        // 마스터 열은 항상 허용(잠금), 관리자 등급은 보기만
+                        return permCell(menu.id, role, roles.indexOf(role) !== -1, role === "master" || !amMaster);
+                    }).join("") + "</tr>";
+            });
+            rows.push('<tr class="is-fixed"><th scope="row">관리자 페이지 <span class="admin-perm-tag">고정</span></th>' +
+                PERM_ROLES.map(function (role) {
+                    return permCell("admin", role, GW.ADMIN_PAGE_ROLES.indexOf(role) !== -1, true);
+                }).join("") + "</tr>");
+            document.getElementById("perm-tbody").innerHTML = rows.join("");
+        }
+        document.getElementById("perm-tbody").addEventListener("change", function (e) {
+            var cb = e.target;
+            if (!cb.classList.contains("admin-perm-check") || !amMaster) return;
+            var perms = GW.getPermissions();
+            var menuId = cb.dataset.menu, role = cb.dataset.role;
+            var roles = perms[menuId].filter(function (r) { return r !== role; });
+            if (cb.checked) roles.push(role);
+            perms[menuId] = PERM_ROLES.filter(function (r) { return roles.indexOf(r) !== -1; });
+            GW.savePermissions(perms);
+            var menu = GW.MENUS.filter(function (m) { return m.id === menuId; })[0];
+            var summary = perms[menuId].map(GW.roleLabel).join("·");
+            GW.log("메뉴 권한 변경", menu.label + ": " + summary);
+            showToast(menu.label + " → " + summary + " 접근 가능");
+        });
+
+        // ---------- 데이터 ----------
+        var STORAGE_LABELS = {
+            "members": "회원 목록",
+            "current-member": "현재 사용자",
+            "menu-permissions": "메뉴 권한",
+            "admin-log": "관리자 변경 이력",
+            "todos": "할 일",
+            "work-instructions": "업무 요청",
+            "calendar-events": "일정",
+            "chat-history": "팀 메시지",
+            "cost-v1": "비용관리",
+            "onboarding-done": "시작 안내 완료 여부",
+            "sample-data": "예시 데이터 표시"
+        };
+        function storageKeys() {
+            var keys = [];
+            for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (k.indexOf(GW.PREFIX) === 0) keys.push(k);
+            }
+            return keys.sort();
+        }
+        function renderStorage() {
+            var total = 0;
+            var rows = storageKeys().map(function (k) {
+                var bytes = (localStorage.getItem(k) || "").length * 2;
+                total += bytes;
+                var short = k.slice(GW.PREFIX.length);
+                return '<li><span>' + escapeHtml(STORAGE_LABELS[short] || short) + "</span><span>" + (bytes / 1024).toFixed(1) + " KB</span></li>";
+            });
+            document.getElementById("storage-list").innerHTML = rows.join("") +
+                '<li class="is-total"><span>합계 (브라우저 한도 약 5MB)</span><span>' + (total / 1024).toFixed(1) + " KB</span></li>";
+        }
+        document.getElementById("data-backup").addEventListener("click", function () {
+            GW.log("전체 백업", "");
+            GW.backup();
+        });
+        var restoreFile = document.getElementById("data-restore-file");
+        document.getElementById("data-restore").addEventListener("click", function () { restoreFile.click(); });
+        restoreFile.addEventListener("change", function () {
+            var file = restoreFile.files && restoreFile.files[0];
+            if (!file || !amMaster) return;
+            GW.restore(file, function (err) {
+                if (err) showToast(err);
+                restoreFile.value = "";
+            });
+        });
+        var resetInput = document.getElementById("reset-confirm");
+        var resetBtn = document.getElementById("data-reset");
+        resetInput.addEventListener("input", function () {
+            resetBtn.disabled = resetInput.value.trim() !== "초기화";
+        });
+        resetBtn.addEventListener("click", function () {
+            if (resetInput.value.trim() !== "초기화" || !amMaster) return;
+            storageKeys().forEach(function (k) { localStorage.removeItem(k); });
+            location.href = "../index.html";
+        });
+
+        // ---------- 변경 이력 ----------
+        function renderLog() {
+            var list = GW.getLog();
+            var el = document.getElementById("log-list");
+            if (!list.length) {
+                el.innerHTML = '<li class="list-empty">아직 변경 이력이 없습니다.</li>';
+                return;
+            }
+            el.innerHTML = list.map(function (item) {
+                var d = new Date(item.at);
+                var time = d.toLocaleDateString("ko-KR") + " " + d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+                return '<li><span class="admin-log-time">' + escapeHtml(time) + '</span><span class="admin-log-action">' + escapeHtml(item.action) + "</span>" +
+                    '<span class="admin-log-detail">' + escapeHtml(item.detail) + '</span><span class="admin-log-by">' + escapeHtml(item.by) + "</span></li>";
+            }).join("");
+        }
+
+        renderKpis();
+        renderMembers();
+        renderPerms();
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>비용관리 - AI 그룹웨어</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../agent.css">
+</head>
+<body>
+    <div class="agent-page cost-page">
+        <header class="agent-page-header">
+            <div class="cost-title-wrap">
+                <h1 class="agent-page-title">비용관리</h1>
+                <span class="cost-title-sub">사업 초기 자금 · 지출 · 런웨이</span>
+            </div>
+            <div class="agent-page-header-actions">
+                <button type="button" class="cost-btn" id="cost-settings-btn">자금·예산 설정</button>
+                <button type="button" class="cost-btn" id="cost-export-csv">CSV 내보내기</button>
+                <button type="button" class="cost-btn" id="cost-backup-btn">백업</button>
+                <button type="button" class="cost-btn" id="cost-restore-btn">복원</button>
+                <input type="file" id="cost-restore-file" accept="application/json,.json" hidden>
+                <a href="../index.html" class="agent-page-home-btn">홈으로 돌아가기</a>
+            </div>
+        </header>
+
+        <main class="agent-page-body cost-body">
+            <!-- 핵심 지표 -->
+            <section class="cost-kpis" aria-label="핵심 지표">
+                <div class="cost-kpi">
+                    <span class="cost-kpi-label">초기 자금</span>
+                    <span class="cost-kpi-value" id="kpi-capital">—</span>
+                    <span class="cost-kpi-sub" id="kpi-capital-sub"></span>
+                </div>
+                <div class="cost-kpi">
+                    <span class="cost-kpi-label">누적 지출</span>
+                    <span class="cost-kpi-value" id="kpi-spent">—</span>
+                    <span class="cost-kpi-sub" id="kpi-spent-sub"></span>
+                </div>
+                <div class="cost-kpi">
+                    <span class="cost-kpi-label">남은 자금</span>
+                    <span class="cost-kpi-value" id="kpi-remaining">—</span>
+                    <span class="cost-kpi-sub" id="kpi-remaining-sub"></span>
+                </div>
+                <div class="cost-kpi">
+                    <span class="cost-kpi-label">월평균 지출 (최근 3개월)</span>
+                    <span class="cost-kpi-value" id="kpi-burn">—</span>
+                    <span class="cost-kpi-sub" id="kpi-burn-sub"></span>
+                </div>
+                <div class="cost-kpi cost-kpi-hero">
+                    <span class="cost-kpi-label">예상 런웨이</span>
+                    <span class="cost-kpi-value" id="kpi-runway">—</span>
+                    <span class="cost-kpi-sub" id="kpi-runway-sub"></span>
+                </div>
+            </section>
+
+            <!-- 확인 필요 알림 -->
+            <section class="cost-alerts" id="cost-alerts" aria-label="확인 필요"></section>
+
+            <div class="cost-grid">
+                <!-- 지출 입력 -->
+                <section class="cost-card" aria-labelledby="cost-form-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-form-title">지출 입력</h2>
+                        <button type="button" class="cost-link-btn" id="cost-form-cancel" hidden>수정 취소</button>
+                    </div>
+                    <form class="cost-form" id="cost-form" autocomplete="off">
+                        <div class="cost-form-row">
+                            <label class="cost-field">
+                                <span>날짜</span>
+                                <input type="date" id="f-date" required>
+                            </label>
+                            <label class="cost-field">
+                                <span>금액 (VAT 포함, 원)</span>
+                                <input type="text" id="f-amount" inputmode="numeric" placeholder="0" required>
+                            </label>
+                        </div>
+                        <label class="cost-field">
+                            <span>내용</span>
+                            <input type="text" id="f-item" maxlength="60" placeholder="예: 노트북 구매, 사무실 2월 월세" required>
+                        </label>
+                        <div class="cost-form-row">
+                            <label class="cost-field">
+                                <span>분류</span>
+                                <select id="f-category"></select>
+                            </label>
+                            <label class="cost-field">
+                                <span>거래처</span>
+                                <input type="text" id="f-vendor" maxlength="40" placeholder="선택" list="vendor-list">
+                                <datalist id="vendor-list"></datalist>
+                            </label>
+                        </div>
+                        <div class="cost-form-row">
+                            <label class="cost-field">
+                                <span>결제수단</span>
+                                <select id="f-method"></select>
+                            </label>
+                            <label class="cost-field">
+                                <span>증빙</span>
+                                <select id="f-evidence"></select>
+                            </label>
+                        </div>
+                        <label class="cost-field">
+                            <span>메모</span>
+                            <input type="text" id="f-memo" maxlength="100" placeholder="선택">
+                        </label>
+                        <p class="cost-form-hint" id="f-hint"></p>
+                        <div class="cost-form-actions">
+                            <button type="submit" class="btn-primary" id="f-submit">추가</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- 이번 달 분류별 예산 -->
+                <section class="cost-card" aria-labelledby="cost-cat-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-cat-title">이번 달 분류별 지출</h2>
+                        <span class="cost-card-meta" id="cost-cat-meta"></span>
+                    </div>
+                    <ul class="cost-meters" id="cost-meters"></ul>
+                </section>
+
+                <!-- 월별 추이 -->
+                <section class="cost-card" aria-labelledby="cost-trend-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-trend-title">월별 지출 추이</h2>
+                        <span class="cost-card-meta">최근 6개월</span>
+                    </div>
+                    <div class="cost-trend" id="cost-trend"></div>
+                </section>
+
+                <!-- 정기 지출 -->
+                <section class="cost-card" aria-labelledby="cost-rec-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-rec-title">정기 지출 (고정비)</h2>
+                        <span class="cost-card-meta" id="cost-rec-meta"></span>
+                    </div>
+                    <ul class="cost-rec-list" id="cost-rec-list"></ul>
+                    <form class="cost-rec-form" id="cost-rec-form" autocomplete="off">
+                        <input type="text" id="r-name" maxlength="40" placeholder="항목 (예: 노션 구독)" aria-label="정기 지출 항목" required>
+                        <input type="text" id="r-amount" inputmode="numeric" placeholder="월 금액" aria-label="월 금액" required>
+                        <input type="number" id="r-day" min="1" max="31" value="1" aria-label="매월 결제일" title="매월 결제일">
+                        <select id="r-category" aria-label="분류"></select>
+                        <button type="submit" class="cost-btn">등록</button>
+                    </form>
+                    <button type="button" class="btn-primary cost-rec-apply" id="cost-rec-apply">이번 달 고정비 반영</button>
+                </section>
+            </div>
+
+            <!-- 지출 내역 -->
+            <section class="cost-card cost-ledger" aria-labelledby="cost-ledger-title">
+                <div class="cost-card-head">
+                    <h2 class="cost-card-title" id="cost-ledger-title">지출 내역</h2>
+                    <span class="cost-card-meta" id="cost-ledger-meta"></span>
+                </div>
+                <div class="cost-filters">
+                    <select id="flt-month" aria-label="월 필터"></select>
+                    <select id="flt-category" aria-label="분류 필터"></select>
+                    <input type="search" id="flt-search" placeholder="내용·거래처·메모 검색" aria-label="검색">
+                    <label class="cost-check"><input type="checkbox" id="flt-noevidence"> 증빙 누락만</label>
+                    <label class="cost-check"><input type="checkbox" id="flt-unsettled"> 미정산 개인결제만</label>
+                </div>
+                <div class="cost-table-wrap">
+                    <table class="cost-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">날짜</th>
+                                <th scope="col">분류</th>
+                                <th scope="col">내용 / 거래처</th>
+                                <th scope="col">결제</th>
+                                <th scope="col">증빙</th>
+                                <th scope="col" class="num">금액</th>
+                                <th scope="col"><span class="sr-only">작업</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cost-tbody"></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5">합계</td>
+                                <td class="num" id="cost-tfoot-total">0원</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 자금·예산 설정 -->
+    <div class="modal-overlay" id="modal-cost-settings" hidden>
+        <div class="modal cost-settings-modal" role="dialog" aria-modal="true" aria-labelledby="cost-settings-title">
+            <div class="modal-header">
+                <h3 id="cost-settings-title">자금·예산 설정</h3>
+                <button type="button" class="modal-close" id="cost-settings-close" aria-label="닫기">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label class="modal-label" for="s-capital">초기 자금 (자본금 + 투자·대출 등 사용 가능한 총액, 원)</label>
+                <input type="text" class="modal-input" id="s-capital" inputmode="numeric" placeholder="예: 50,000,000">
+                <label class="modal-label" for="s-start">사업 시작일</label>
+                <input type="date" class="modal-input" id="s-start">
+                <label class="modal-label">분류별 월 예산 (비워두면 예산 없음)</label>
+                <div class="cost-budget-grid" id="s-budgets"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="cost-settings-cancel">취소</button>
+                <button type="button" class="btn-primary" id="cost-settings-save">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="cost-toast" id="cost-toast" role="status" aria-live="polite" hidden>
+        <span id="cost-toast-text"></span>
+        <button type="button" class="cost-link-btn" id="cost-toast-action" hidden>실행취소</button>
+    </div>
+    <div class="cost-tooltip" id="cost-tooltip" hidden></div>
+
+    <script src="../members.js"></script>
+    <script>
+    (function () {
+        if (!GW.guardPage("cost", "../index.html")) return;
+        var STORE_KEY = "ai-groupware-cost-v1";
+
+        var CATEGORIES = [
+            { id: "payroll", label: "인건비" },
+            { id: "rent", label: "임차료·관리비" },
+            { id: "equipment", label: "장비·비품" },
+            { id: "software", label: "소프트웨어·구독" },
+            { id: "marketing", label: "마케팅·광고" },
+            { id: "outsourcing", label: "외주·용역" },
+            { id: "professional", label: "세무·법무·등록" },
+            { id: "travel", label: "교통·출장" },
+            { id: "welfare", label: "식대·복리후생" },
+            { id: "entertainment", label: "접대비" },
+            { id: "utility", label: "통신·공과금" },
+            { id: "etc", label: "기타" }
+        ];
+        var METHODS = [
+            { id: "corp_card", label: "법인카드" },
+            { id: "corp_account", label: "법인계좌 이체" },
+            { id: "personal", label: "대표 개인결제" },
+            { id: "cash", label: "현금" }
+        ];
+        // 적격증빙: 세금계산서·카드·현금영수증 → 매입세액 공제 대상 (접대비 제외)
+        var EVIDENCES = [
+            { id: "tax_invoice", label: "세금계산서", qualified: true },
+            { id: "card", label: "카드전표", qualified: true },
+            { id: "cash_receipt", label: "현금영수증(지출증빙)", qualified: true },
+            { id: "simple", label: "간이영수증", qualified: false },
+            { id: "none", label: "미수취", qualified: false }
+        ];
+
+        function labelOf(list, id) {
+            var found = list.filter(function (x) { return x.id === id; })[0];
+            return found ? found.label : "—";
+        }
+        function escapeHtml(s) {
+            var div = document.createElement("div");
+            div.textContent = s == null ? "" : String(s);
+            return div.innerHTML;
+        }
+        function parseAmount(s) {
+            var n = parseInt(String(s || "").replace(/[^0-9]/g, ""), 10);
+            return isNaN(n) ? 0 : n;
+        }
+        function won(n) {
+            return Math.round(n).toLocaleString("ko-KR") + "원";
+        }
+        function wonShort(n) {
+            var abs = Math.abs(n), sign = n < 0 ? "-" : "";
+            if (abs >= 100000000) return sign + (abs / 100000000).toFixed(abs >= 1000000000 ? 1 : 2).replace(/\.?0+$/, "") + "억원";
+            if (abs >= 10000) return sign + Math.round(abs / 10000).toLocaleString("ko-KR") + "만원";
+            return won(n);
+        }
+        function pad(n) { return String(n).padStart(2, "0"); }
+        function todayIso() {
+            var d = new Date();
+            return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+        }
+        function monthKey(iso) { return String(iso || "").slice(0, 7); }
+        function currentMonth() { return monthKey(todayIso()); }
+        function shiftMonth(ym, delta) {
+            var y = parseInt(ym.slice(0, 4), 10), m = parseInt(ym.slice(5, 7), 10) - 1 + delta;
+            var d = new Date(y, m, 1);
+            return d.getFullYear() + "-" + pad(d.getMonth() + 1);
+        }
+        function monthLabel(ym) { return parseInt(ym.slice(5, 7), 10) + "월"; }
+        function bindAmountFormat(input) {
+            input.addEventListener("input", function () {
+                var n = parseAmount(input.value);
+                input.value = n ? n.toLocaleString("ko-KR") : "";
+            });
+        }
+
+        // ---------- 저장소 ----------
+        function emptyState() {
+            return { settings: { capital: 0, startDate: "", budgets: {} }, expenses: [], recurring: [] };
+        }
+        function load() {
+            try {
+                var raw = localStorage.getItem(STORE_KEY);
+                if (!raw) return emptyState();
+                var data = JSON.parse(raw);
+                var base = emptyState();
+                return {
+                    settings: Object.assign(base.settings, data.settings || {}),
+                    expenses: Array.isArray(data.expenses) ? data.expenses : [],
+                    recurring: Array.isArray(data.recurring) ? data.recurring : []
+                };
+            } catch (e) {
+                return emptyState();
+            }
+        }
+        var state = load();
+        function save() {
+            try {
+                localStorage.setItem(STORE_KEY, JSON.stringify(state));
+            } catch (e) {
+                showToast("저장에 실패했습니다. 브라우저 저장공간을 확인하세요.");
+            }
+        }
+        function uid(prefix) { return prefix + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+        // ---------- 계산 ----------
+        function sum(list) { return list.reduce(function (a, e) { return a + (e.amount || 0); }, 0); }
+        function expensesOfMonth(ym) {
+            return state.expenses.filter(function (e) { return monthKey(e.date) === ym; });
+        }
+        function isQualified(e) {
+            var ev = EVIDENCES.filter(function (x) { return x.id === e.evidence; })[0];
+            return !!(ev && ev.qualified);
+        }
+        function vatEstimate(e) {
+            return isQualified(e) && e.category !== "entertainment" ? Math.round(e.amount / 11) : 0;
+        }
+        function burnRate() {
+            // 최근 3개월(이번 달 포함) 평균. 사업 시작이 더 최근이면 경과 개월 수로 나눔
+            if (!state.expenses.length) return { value: 0, months: 0 };
+            var cm = currentMonth();
+            var first = state.expenses.reduce(function (m, e) { return monthKey(e.date) < m ? monthKey(e.date) : m; }, cm);
+            if (state.settings.startDate && monthKey(state.settings.startDate) < first) first = monthKey(state.settings.startDate);
+            var months = [];
+            for (var i = 0; i < 3; i++) {
+                var ym = shiftMonth(cm, -i);
+                if (ym < first) break;
+                months.push(ym);
+            }
+            var total = months.reduce(function (a, ym) { return a + sum(expensesOfMonth(ym)); }, 0);
+            return { value: months.length ? total / months.length : 0, months: months.length };
+        }
+        function recurringTotal() {
+            return state.recurring.reduce(function (a, r) { return a + (r.amount || 0); }, 0);
+        }
+        function pendingRecurring(ym) {
+            return state.recurring.filter(function (r) {
+                return !state.expenses.some(function (e) { return e.recurringId === r.id && monthKey(e.date) === ym; });
+            });
+        }
+
+        // ---------- 셀렉트 옵션 ----------
+        function fillOptions(sel, list, placeholder) {
+            sel.innerHTML = (placeholder ? '<option value="">' + escapeHtml(placeholder) + "</option>" : "") +
+                list.map(function (x) { return '<option value="' + x.id + '">' + escapeHtml(x.label) + "</option>"; }).join("");
+        }
+        var fDate = document.getElementById("f-date");
+        var fAmount = document.getElementById("f-amount");
+        var fItem = document.getElementById("f-item");
+        var fCategory = document.getElementById("f-category");
+        var fVendor = document.getElementById("f-vendor");
+        var fMethod = document.getElementById("f-method");
+        var fEvidence = document.getElementById("f-evidence");
+        var fMemo = document.getElementById("f-memo");
+        var fHint = document.getElementById("f-hint");
+        var fSubmit = document.getElementById("f-submit");
+        var fCancel = document.getElementById("cost-form-cancel");
+        var form = document.getElementById("cost-form");
+        fillOptions(fCategory, CATEGORIES);
+        fillOptions(fMethod, METHODS);
+        fillOptions(fEvidence, EVIDENCES);
+        fillOptions(document.getElementById("r-category"), CATEGORIES);
+        fillOptions(document.getElementById("flt-category"), CATEGORIES, "전체 분류");
+        fDate.value = todayIso();
+        fEvidence.value = "card";
+        document.getElementById("r-category").value = "rent";
+        bindAmountFormat(fAmount);
+        bindAmountFormat(document.getElementById("r-amount"));
+
+        // 결제수단에 맞춰 증빙 기본값 제안
+        fMethod.addEventListener("change", function () {
+            if (fMethod.value === "corp_card") fEvidence.value = "card";
+            else if (fMethod.value === "corp_account") fEvidence.value = "tax_invoice";
+            updateFormHint();
+        });
+        fEvidence.addEventListener("change", updateFormHint);
+        fCategory.addEventListener("change", updateFormHint);
+        fAmount.addEventListener("input", updateFormHint);
+        function updateFormHint() {
+            var draft = { amount: parseAmount(fAmount.value), evidence: fEvidence.value, category: fCategory.value };
+            var msgs = [];
+            if (fEvidence.value === "none") msgs.push("증빙 미수취 건은 비용 인정이 어려울 수 있어요. 나중에 꼭 챙기세요.");
+            else if (fEvidence.value === "simple" && draft.amount > 30000) msgs.push("3만원 초과 간이영수증은 증빙불비 가산세(2%) 대상일 수 있어요.");
+            if (fMethod.value === "personal") msgs.push("대표 개인결제는 '미정산'으로 표시되어 정산할 때까지 추적됩니다.");
+            var vat = vatEstimate(draft);
+            if (vat) msgs.push("공제 예상 부가세 약 " + won(vat));
+            fHint.textContent = msgs.join(" · ");
+        }
+
+        // ---------- 지출 추가/수정 ----------
+        var editingId = null;
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            var amount = parseAmount(fAmount.value);
+            var item = fItem.value.trim();
+            if (!amount) { fAmount.focus(); showToast("금액을 입력하세요."); return; }
+            if (!item) { fItem.focus(); return; }
+            var data = {
+                date: fDate.value || todayIso(),
+                amount: amount,
+                item: item,
+                category: fCategory.value,
+                vendor: fVendor.value.trim(),
+                method: fMethod.value,
+                evidence: fEvidence.value,
+                memo: fMemo.value.trim()
+            };
+            if (editingId) {
+                var target = state.expenses.filter(function (x) { return x.id === editingId; })[0];
+                if (target) {
+                    Object.assign(target, data);
+                    if (data.method !== "personal") target.settled = false;
+                }
+                showToast("수정했습니다.");
+                resetForm();
+            } else {
+                data.id = uid("exp");
+                data.settled = false;
+                data.createdAt = Date.now();
+                state.expenses.push(data);
+                showToast(data.item + " " + won(amount) + " 추가됨");
+                // 연속 입력을 위해 날짜·분류·결제수단은 유지
+                fAmount.value = "";
+                fItem.value = "";
+                fVendor.value = "";
+                fMemo.value = "";
+                fItem.focus();
+                updateFormHint();
+            }
+            save();
+            render();
+        });
+
+        function startEdit(id) {
+            var e = state.expenses.filter(function (x) { return x.id === id; })[0];
+            if (!e) return;
+            editingId = id;
+            fDate.value = e.date;
+            fAmount.value = e.amount.toLocaleString("ko-KR");
+            fItem.value = e.item;
+            fCategory.value = e.category;
+            fVendor.value = e.vendor || "";
+            fMethod.value = e.method;
+            fEvidence.value = e.evidence;
+            fMemo.value = e.memo || "";
+            fSubmit.textContent = "수정 저장";
+            fCancel.hidden = false;
+            document.getElementById("cost-form-title").textContent = "지출 수정";
+            updateFormHint();
+            form.scrollIntoView({ behavior: "smooth", block: "start" });
+            fItem.focus();
+        }
+        function resetForm() {
+            editingId = null;
+            fAmount.value = "";
+            fItem.value = "";
+            fVendor.value = "";
+            fMemo.value = "";
+            fSubmit.textContent = "추가";
+            fCancel.hidden = true;
+            document.getElementById("cost-form-title").textContent = "지출 입력";
+            updateFormHint();
+        }
+        fCancel.addEventListener("click", resetForm);
+
+        function deleteExpense(id) {
+            var idx = state.expenses.findIndex(function (x) { return x.id === id; });
+            if (idx === -1) return;
+            var removed = state.expenses.splice(idx, 1)[0];
+            if (editingId === id) resetForm();
+            save();
+            render();
+            showToast("'" + removed.item + "' 삭제됨", function () {
+                state.expenses.splice(idx, 0, removed);
+                save();
+                render();
+            });
+        }
+
+        // ---------- 렌더링 ----------
+        function render() {
+            renderKpis();
+            renderAlerts();
+            renderMeters();
+            renderTrend();
+            renderRecurring();
+            renderMonthFilter();
+            renderLedger();
+            renderVendors();
+        }
+
+        function setKpi(id, value, sub, title) {
+            var el = document.getElementById(id);
+            el.textContent = value;
+            el.title = title || "";
+            document.getElementById(id + "-sub").textContent = sub || "";
+        }
+
+        function renderKpis() {
+            var capital = state.settings.capital || 0;
+            var spent = sum(state.expenses);
+            var remaining = capital - spent;
+            var burn = burnRate();
+            var thisMonth = sum(expensesOfMonth(currentMonth()));
+            var hasCapital = capital > 0;
+
+            setKpi("kpi-capital", hasCapital ? wonShort(capital) : "미설정", hasCapital ? (state.settings.startDate ? state.settings.startDate + " 시작" : "") : "상단 '자금·예산 설정'에서 입력", won(capital));
+            setKpi("kpi-spent", wonShort(spent), hasCapital ? "자금의 " + Math.round(spent / capital * 100) + "% 사용" : state.expenses.length + "건", won(spent));
+            setKpi("kpi-remaining", hasCapital ? wonShort(remaining) : "—", hasCapital ? "이번 달 " + wonShort(thisMonth) + " 지출" : "", won(remaining));
+            setKpi("kpi-burn", wonShort(burn.value), burn.months ? burn.months + "개월 평균 · 고정비 " + wonShort(recurringTotal()) : "지출 내역 없음", won(burn.value));
+
+            var runwayEl = document.getElementById("kpi-runway");
+            var hero = runwayEl.closest(".cost-kpi");
+            hero.classList.remove("is-good", "is-warn", "is-danger");
+            if (!hasCapital) {
+                setKpi("kpi-runway", "—", "초기 자금을 설정하면 계산됩니다");
+            } else if (remaining <= 0) {
+                setKpi("kpi-runway", "소진", "자금을 모두 사용했습니다");
+                hero.classList.add("is-danger");
+            } else if (!burn.value) {
+                setKpi("kpi-runway", "—", "지출이 쌓이면 계산됩니다");
+            } else {
+                var months = remaining / burn.value;
+                var end = new Date();
+                end.setMonth(end.getMonth() + Math.floor(months));
+                setKpi("kpi-runway", months >= 99 ? "99+개월" : months.toFixed(1) + "개월",
+                    "현재 속도면 " + end.getFullYear() + "년 " + (end.getMonth() + 1) + "월경 소진");
+                hero.classList.add(months < 3 ? "is-danger" : months < 6 ? "is-warn" : "is-good");
+            }
+        }
+
+        function renderAlerts() {
+            var el = document.getElementById("cost-alerts");
+            var items = [];
+            var noEv = state.expenses.filter(function (e) { return e.evidence === "none"; });
+            if (noEv.length) items.push({ tone: "warn", text: "증빙 미수취 " + noEv.length + "건 (" + won(sum(noEv)) + ")", filter: "noevidence" });
+            var unsettled = state.expenses.filter(function (e) { return e.method === "personal" && !e.settled; });
+            if (unsettled.length) items.push({ tone: "info", text: "대표 개인결제 미정산 " + won(sum(unsettled)) + " (" + unsettled.length + "건)", filter: "unsettled" });
+            var cm = currentMonth();
+            var over = CATEGORIES.filter(function (c) {
+                var b = state.settings.budgets[c.id];
+                return b && sum(expensesOfMonth(cm).filter(function (e) { return e.category === c.id; })) > b;
+            });
+            if (over.length) items.push({ tone: "danger", text: "이번 달 예산 초과: " + over.map(function (c) { return c.label; }).join(", ") });
+            var pending = pendingRecurring(cm);
+            if (pending.length) items.push({ tone: "info", text: "이번 달 미반영 고정비 " + pending.length + "건", action: "recurring" });
+
+            if (!state.expenses.length && !state.settings.capital) {
+                el.innerHTML = '<div class="cost-onboard"><strong>시작하기</strong> ① 상단 <b>자금·예산 설정</b>에서 초기 자금 입력 → ② 아래에서 첫 지출 입력 → ③ 매달 나가는 구독·월세는 <b>정기 지출</b>에 등록하세요. 데이터는 이 브라우저에만 저장되니 주기적으로 <b>백업</b>하세요.</div>';
+                return;
+            }
+            el.innerHTML = items.map(function (it, i) {
+                var clickable = it.filter || it.action;
+                return '<' + (clickable ? 'button type="button"' : "div") + ' class="cost-alert is-' + it.tone + '" data-i="' + i + '">' +
+                    '<span class="cost-alert-dot" aria-hidden="true"></span>' + escapeHtml(it.text) +
+                    (clickable ? ' <span class="cost-alert-go">보기 →</span>' : "") +
+                    "</" + (clickable ? "button" : "div") + ">";
+            }).join("");
+            el.querySelectorAll("button.cost-alert").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    var it = items[parseInt(btn.dataset.i, 10)];
+                    if (it.action === "recurring") {
+                        document.getElementById("cost-rec-apply").scrollIntoView({ behavior: "smooth", block: "center" });
+                        return;
+                    }
+                    fltMonth.value = "";
+                    fltNoEvidence.checked = it.filter === "noevidence";
+                    fltUnsettled.checked = it.filter === "unsettled";
+                    renderLedger();
+                    document.querySelector(".cost-ledger").scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+            });
+        }
+
+        function renderMeters() {
+            var cm = currentMonth();
+            var list = expensesOfMonth(cm);
+            var total = sum(list);
+            var budgets = state.settings.budgets;
+            var budgetTotal = CATEGORIES.reduce(function (a, c) { return a + (budgets[c.id] || 0); }, 0);
+            document.getElementById("cost-cat-meta").textContent = budgetTotal
+                ? won(total) + " / 예산 " + won(budgetTotal)
+                : won(total);
+            var rows = CATEGORIES.map(function (c) {
+                return { c: c, spent: sum(list.filter(function (e) { return e.category === c.id; })), budget: budgets[c.id] || 0 };
+            }).filter(function (r) { return r.spent > 0 || r.budget > 0; })
+              .sort(function (a, b) { return b.spent - a.spent; });
+            var el = document.getElementById("cost-meters");
+            if (!rows.length) {
+                el.innerHTML = '<li class="cost-empty">이번 달 지출이 없습니다.</li>';
+                return;
+            }
+            var maxSpent = Math.max.apply(null, rows.map(function (r) { return r.spent; }));
+            el.innerHTML = rows.map(function (r) {
+                var pct, status = "", note;
+                if (r.budget) {
+                    pct = Math.min(100, r.spent / r.budget * 100);
+                    var ratio = r.spent / r.budget;
+                    status = ratio > 1 ? "is-over" : ratio >= 0.8 ? "is-near" : "";
+                    note = Math.round(ratio * 100) + "%" + (ratio > 1 ? " 초과" : "") + " · 예산 " + wonShort(r.budget);
+                } else {
+                    pct = maxSpent ? r.spent / maxSpent * 100 : 0;
+                    note = (total ? Math.round(r.spent / total * 100) : 0) + "% · 예산 없음";
+                }
+                return '<li class="cost-meter ' + status + '">' +
+                    '<div class="cost-meter-top"><span class="cost-meter-name">' + escapeHtml(r.c.label) + '</span>' +
+                    '<span class="cost-meter-value">' + won(r.spent) + "</span></div>" +
+                    '<div class="cost-meter-track"><span class="cost-meter-fill' + (r.budget ? "" : " is-nobudget") + '" style="width:' + pct.toFixed(1) + '%"></span></div>' +
+                    '<span class="cost-meter-note">' + (status === "is-over" ? "⚠ " : "") + escapeHtml(note) + "</span></li>";
+            }).join("");
+        }
+
+        var tooltip = document.getElementById("cost-tooltip");
+        function showTip(target, html) {
+            tooltip.innerHTML = html;
+            tooltip.hidden = false;
+            var r = target.getBoundingClientRect();
+            var tw = tooltip.offsetWidth;
+            var left = Math.max(8, Math.min(window.innerWidth - tw - 8, r.left + r.width / 2 - tw / 2));
+            tooltip.style.left = left + "px";
+            tooltip.style.top = (r.top - tooltip.offsetHeight - 8) + "px";
+        }
+        function hideTip() { tooltip.hidden = true; }
+
+        function renderTrend() {
+            var cm = currentMonth();
+            var months = [];
+            for (var i = 5; i >= 0; i--) months.push(shiftMonth(cm, -i));
+            var values = months.map(function (ym) { return sum(expensesOfMonth(ym)); });
+            var max = Math.max.apply(null, values);
+            var el = document.getElementById("cost-trend");
+            if (!max) {
+                el.innerHTML = '<p class="cost-empty">지출이 쌓이면 월별 추이가 표시됩니다.</p>';
+                return;
+            }
+            var burn = burnRate().value;
+            el.innerHTML =
+                '<div class="cost-bars" role="img" aria-label="최근 6개월 월별 지출">' +
+                (burn ? '<span class="cost-bars-avg" style="bottom:' + (burn / max * 100).toFixed(1) + '%"><span>평균 ' + wonShort(burn) + "</span></span>" : "") +
+                months.map(function (ym, idx) {
+                    var v = values[idx];
+                    var h = v ? Math.max(2, v / max * 100) : 0;
+                    return '<div class="cost-bar-col" tabindex="0" data-idx="' + idx + '">' +
+                        (ym === cm && v ? '<span class="cost-bar-label">' + wonShort(v) + "</span>" : "") +
+                        '<span class="cost-bar' + (ym === cm ? " is-current" : "") + '" style="height:' + h.toFixed(1) + '%"></span></div>';
+                }).join("") + "</div>" +
+                '<div class="cost-bars-axis">' + months.map(function (ym) { return "<span>" + monthLabel(ym) + "</span>"; }).join("") + "</div>";
+            el.querySelectorAll(".cost-bar-col").forEach(function (col) {
+                var idx = parseInt(col.dataset.idx, 10);
+                var html = "<strong>" + months[idx].replace("-", "년 ") + "월</strong><br>" + won(values[idx]) + " · " + expensesOfMonth(months[idx]).length + "건";
+                col.addEventListener("mouseenter", function () { showTip(col, html); });
+                col.addEventListener("focus", function () { showTip(col, html); });
+                col.addEventListener("mouseleave", hideTip);
+                col.addEventListener("blur", hideTip);
+            });
+        }
+
+        function renderRecurring() {
+            var el = document.getElementById("cost-rec-list");
+            var cm = currentMonth();
+            var pending = pendingRecurring(cm);
+            document.getElementById("cost-rec-meta").textContent = state.recurring.length ? "월 " + won(recurringTotal()) : "";
+            var applyBtn = document.getElementById("cost-rec-apply");
+            applyBtn.disabled = !pending.length;
+            applyBtn.textContent = pending.length ? "이번 달 고정비 반영 (" + pending.length + "건)" : "이번 달 고정비 반영 완료";
+            if (!state.recurring.length) {
+                el.innerHTML = '<li class="cost-empty">월세·구독료처럼 매달 나가는 비용을 등록하면 한 번에 반영할 수 있어요.</li>';
+                return;
+            }
+            el.innerHTML = state.recurring.map(function (r) {
+                var done = pending.indexOf(r) === -1;
+                return '<li class="cost-rec-item">' +
+                    '<span class="cost-rec-name">' + escapeHtml(r.name) + '<small>' + escapeHtml(labelOf(CATEGORIES, r.category)) + " · 매월 " + r.day + "일</small></span>" +
+                    '<span class="cost-rec-amount">' + won(r.amount) + "</span>" +
+                    '<span class="cost-rec-state' + (done ? " is-done" : "") + '">' + (done ? "반영됨" : "대기") + "</span>" +
+                    '<button type="button" class="cost-icon-btn" data-del-rec="' + r.id + '" aria-label="' + escapeHtml(r.name) + ' 정기 지출 삭제">×</button></li>';
+            }).join("");
+            el.querySelectorAll("[data-del-rec]").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    var id = btn.dataset.delRec;
+                    var idx = state.recurring.findIndex(function (r) { return r.id === id; });
+                    var removed = state.recurring.splice(idx, 1)[0];
+                    save();
+                    render();
+                    showToast("정기 지출 '" + removed.name + "' 삭제됨", function () {
+                        state.recurring.splice(idx, 0, removed);
+                        save();
+                        render();
+                    });
+                });
+            });
+        }
+
+        document.getElementById("cost-rec-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            var name = document.getElementById("r-name").value.trim();
+            var amount = parseAmount(document.getElementById("r-amount").value);
+            var day = Math.min(31, Math.max(1, parseInt(document.getElementById("r-day").value, 10) || 1));
+            if (!name || !amount) return;
+            state.recurring.push({ id: uid("rec"), name: name, amount: amount, day: day, category: document.getElementById("r-category").value });
+            save();
+            render();
+            document.getElementById("r-name").value = "";
+            document.getElementById("r-amount").value = "";
+            document.getElementById("r-name").focus();
+        });
+
+        document.getElementById("cost-rec-apply").addEventListener("click", function () {
+            var cm = currentMonth();
+            var y = parseInt(cm.slice(0, 4), 10), m = parseInt(cm.slice(5, 7), 10);
+            var lastDay = new Date(y, m, 0).getDate();
+            var pending = pendingRecurring(cm);
+            pending.forEach(function (r) {
+                state.expenses.push({
+                    id: uid("exp"),
+                    date: cm + "-" + pad(Math.min(r.day, lastDay)),
+                    amount: r.amount,
+                    item: r.name,
+                    category: r.category,
+                    vendor: "",
+                    method: "corp_card",
+                    evidence: "card",
+                    memo: "정기 지출 자동 반영",
+                    settled: false,
+                    recurringId: r.id,
+                    createdAt: Date.now()
+                });
+            });
+            save();
+            render();
+            showToast("고정비 " + pending.length + "건을 반영했습니다. 결제수단·증빙이 다르면 내역에서 수정하세요.");
+        });
+
+        // ---------- 지출 내역 ----------
+        var fltMonth = document.getElementById("flt-month");
+        var fltCategory = document.getElementById("flt-category");
+        var fltSearch = document.getElementById("flt-search");
+        var fltNoEvidence = document.getElementById("flt-noevidence");
+        var fltUnsettled = document.getElementById("flt-unsettled");
+        var monthFilterInit = false;
+
+        function renderMonthFilter() {
+            var prev = monthFilterInit ? fltMonth.value : currentMonth();
+            var set = {};
+            set[currentMonth()] = true;
+            state.expenses.forEach(function (e) { set[monthKey(e.date)] = true; });
+            var months = Object.keys(set).sort().reverse();
+            fltMonth.innerHTML = '<option value="">전체 기간</option>' + months.map(function (ym) {
+                return '<option value="' + ym + '">' + ym.replace("-", "년 ") + "월</option>";
+            }).join("");
+            fltMonth.value = prev;
+            monthFilterInit = true;
+        }
+
+        function filteredExpenses() {
+            var q = fltSearch.value.trim().toLowerCase();
+            return state.expenses.filter(function (e) {
+                if (fltMonth.value && monthKey(e.date) !== fltMonth.value) return false;
+                if (fltCategory.value && e.category !== fltCategory.value) return false;
+                if (fltNoEvidence.checked && e.evidence !== "none") return false;
+                if (fltUnsettled.checked && !(e.method === "personal" && !e.settled)) return false;
+                if (q && (e.item + " " + (e.vendor || "") + " " + (e.memo || "")).toLowerCase().indexOf(q) === -1) return false;
+                return true;
+            }).sort(function (a, b) {
+                return a.date === b.date ? (b.createdAt || 0) - (a.createdAt || 0) : (a.date < b.date ? 1 : -1);
+            });
+        }
+
+        function renderLedger() {
+            var list = filteredExpenses();
+            var tbody = document.getElementById("cost-tbody");
+            document.getElementById("cost-ledger-meta").textContent = list.length + "건";
+            document.getElementById("cost-tfoot-total").textContent = won(sum(list));
+            if (!list.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="cost-empty">' +
+                    (state.expenses.length ? "조건에 맞는 지출이 없습니다." : "아직 입력된 지출이 없습니다. 왼쪽 위 '지출 입력'에서 시작하세요.") + "</td></tr>";
+                return;
+            }
+            tbody.innerHTML = list.map(function (e) {
+                var methodHtml = escapeHtml(labelOf(METHODS, e.method));
+                if (e.method === "personal") {
+                    methodHtml += ' <button type="button" class="cost-pill ' + (e.settled ? "is-ok" : "is-pending") + '" data-settle="' + e.id + '" title="클릭하여 정산 상태 변경">' + (e.settled ? "정산완료" : "미정산") + "</button>";
+                }
+                var evClass = e.evidence === "none" ? "is-missing" : isQualified(e) ? "" : "is-weak";
+                return '<tr data-id="' + e.id + '">' +
+                    '<td class="cost-td-date">' + escapeHtml(e.date.slice(5).replace("-", ".")) + "</td>" +
+                    '<td><span class="cost-cat-tag">' + escapeHtml(labelOf(CATEGORIES, e.category)) + "</span></td>" +
+                    '<td class="cost-td-item"><span>' + escapeHtml(e.item) + "</span>" +
+                    (e.vendor || e.memo ? "<small>" + escapeHtml([e.vendor, e.memo].filter(Boolean).join(" · ")) + "</small>" : "") + "</td>" +
+                    "<td>" + methodHtml + "</td>" +
+                    '<td><span class="cost-ev ' + evClass + '">' + escapeHtml(labelOf(EVIDENCES, e.evidence)) + "</span></td>" +
+                    '<td class="num">' + won(e.amount) + "</td>" +
+                    '<td class="cost-td-actions">' +
+                    '<button type="button" class="cost-link-btn" data-edit="' + e.id + '">수정</button>' +
+                    '<button type="button" class="cost-link-btn is-danger" data-del="' + e.id + '">삭제</button></td></tr>';
+            }).join("");
+            tbody.querySelectorAll("[data-edit]").forEach(function (b) { b.addEventListener("click", function () { startEdit(b.dataset.edit); }); });
+            tbody.querySelectorAll("[data-del]").forEach(function (b) { b.addEventListener("click", function () { deleteExpense(b.dataset.del); }); });
+            tbody.querySelectorAll("[data-settle]").forEach(function (b) {
+                b.addEventListener("click", function () {
+                    var e = state.expenses.filter(function (x) { return x.id === b.dataset.settle; })[0];
+                    if (!e) return;
+                    e.settled = !e.settled;
+                    save();
+                    render();
+                });
+            });
+        }
+        [fltMonth, fltCategory, fltNoEvidence, fltUnsettled].forEach(function (el) { el.addEventListener("change", renderLedger); });
+        fltSearch.addEventListener("input", renderLedger);
+
+        function renderVendors() {
+            var set = {};
+            state.expenses.forEach(function (e) { if (e.vendor) set[e.vendor] = true; });
+            document.getElementById("vendor-list").innerHTML = Object.keys(set).sort().map(function (v) {
+                return '<option value="' + escapeHtml(v) + '">';
+            }).join("");
+        }
+
+        // ---------- 설정 ----------
+        var settingsModal = document.getElementById("modal-cost-settings");
+        var sCapital = document.getElementById("s-capital");
+        var sStart = document.getElementById("s-start");
+        var sBudgets = document.getElementById("s-budgets");
+        bindAmountFormat(sCapital);
+        function openSettings() {
+            sCapital.value = state.settings.capital ? state.settings.capital.toLocaleString("ko-KR") : "";
+            sStart.value = state.settings.startDate || "";
+            sBudgets.innerHTML = CATEGORIES.map(function (c) {
+                var v = state.settings.budgets[c.id];
+                return '<label class="cost-budget-field"><span>' + escapeHtml(c.label) + "</span>" +
+                    '<input type="text" class="modal-input" inputmode="numeric" data-budget="' + c.id + '" value="' + (v ? v.toLocaleString("ko-KR") : "") + '" placeholder="—"></label>';
+            }).join("");
+            sBudgets.querySelectorAll("input").forEach(bindAmountFormat);
+            settingsModal.hidden = false;
+            sCapital.focus();
+        }
+        function closeSettings() { settingsModal.hidden = true; }
+        document.getElementById("cost-settings-btn").addEventListener("click", openSettings);
+        document.getElementById("cost-settings-close").addEventListener("click", closeSettings);
+        document.getElementById("cost-settings-cancel").addEventListener("click", closeSettings);
+        settingsModal.addEventListener("click", function (e) { if (e.target === settingsModal) closeSettings(); });
+        document.getElementById("cost-settings-save").addEventListener("click", function () {
+            state.settings.capital = parseAmount(sCapital.value);
+            state.settings.startDate = sStart.value;
+            var budgets = {};
+            sBudgets.querySelectorAll("[data-budget]").forEach(function (input) {
+                var v = parseAmount(input.value);
+                if (v) budgets[input.dataset.budget] = v;
+            });
+            state.settings.budgets = budgets;
+            save();
+            closeSettings();
+            render();
+            showToast("설정을 저장했습니다.");
+        });
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && !settingsModal.hidden) closeSettings();
+        });
+
+        // ---------- 내보내기 / 백업 ----------
+        function download(filename, content, type) {
+            var blob = new Blob([content], { type: type });
+            var a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+        }
+        function csvCell(v) {
+            var s = String(v == null ? "" : v);
+            return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }
+        document.getElementById("cost-export-csv").addEventListener("click", function () {
+            var list = filteredExpenses();
+            if (!list.length) { showToast("내보낼 지출이 없습니다."); return; }
+            var header = ["날짜", "분류", "내용", "거래처", "결제수단", "정산", "증빙", "금액", "공제예상부가세", "메모"];
+            var rows = list.map(function (e) {
+                return [e.date, labelOf(CATEGORIES, e.category), e.item, e.vendor, labelOf(METHODS, e.method),
+                    e.method === "personal" ? (e.settled ? "정산완료" : "미정산") : "",
+                    labelOf(EVIDENCES, e.evidence), e.amount, vatEstimate(e), e.memo].map(csvCell).join(",");
+            });
+            // BOM: 엑셀에서 한글 깨짐 방지
+            download("비용내역_" + (fltMonth.value || "전체") + ".csv", "﻿" + [header.join(",")].concat(rows).join("\n"), "text/csv;charset=utf-8");
+        });
+        document.getElementById("cost-backup-btn").addEventListener("click", function () {
+            download("비용관리_백업_" + todayIso() + ".json", JSON.stringify(state, null, 2), "application/json");
+        });
+        var restoreFile = document.getElementById("cost-restore-file");
+        document.getElementById("cost-restore-btn").addEventListener("click", function () { restoreFile.click(); });
+        restoreFile.addEventListener("change", function () {
+            var file = restoreFile.files && restoreFile.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function () {
+                try {
+                    var data = JSON.parse(reader.result);
+                    if (!data || !Array.isArray(data.expenses)) throw new Error("invalid");
+                    if (!confirm("백업 파일의 지출 " + data.expenses.length + "건으로 현재 데이터를 덮어씁니다. 계속할까요?")) return;
+                    state = {
+                        settings: Object.assign(emptyState().settings, data.settings || {}),
+                        expenses: data.expenses,
+                        recurring: Array.isArray(data.recurring) ? data.recurring : []
+                    };
+                    save();
+                    resetForm();
+                    render();
+                    showToast("복원했습니다.");
+                } catch (e) {
+                    showToast("올바른 백업 파일이 아닙니다.");
+                } finally {
+                    restoreFile.value = "";
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // ---------- 토스트 ----------
+        var toast = document.getElementById("cost-toast");
+        var toastText = document.getElementById("cost-toast-text");
+        var toastAction = document.getElementById("cost-toast-action");
+        var toastTimer = null, toastUndo = null;
+        function showToast(text, undo) {
+            toastText.textContent = text;
+            toastUndo = undo || null;
+            toastAction.hidden = !undo;
+            toast.hidden = false;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(function () { toast.hidden = true; toastUndo = null; }, undo ? 6000 : 3000);
+        }
+        toastAction.addEventListener("click", function () {
+            if (toastUndo) toastUndo();
+            toastUndo = null;
+            toast.hidden = true;
+        });
+
+        updateFormHint();
+        render();
+    })();
+    </script>
+</body>
+</html>

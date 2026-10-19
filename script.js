@@ -1,120 +1,142 @@
 (function () {
   "use strict";
 
-  // ---------- Agent 추가 (동적 카드 + 사이드바 메뉴) ----------
-  const agentCardsEl = document.getElementById("agent-cards");
-  const cardAddAgent = document.getElementById("card-add-agent");
-  const agentListEl = document.getElementById("agent-list");
-  const modal = document.getElementById("modal-add-agent");
-  const modalClose = document.getElementById("modal-close");
-  const modalCancel = document.getElementById("modal-cancel");
-  const modalSubmit = document.getElementById("modal-submit");
-  const newAgentName = document.getElementById("new-agent-name");
-  const newAgentDesc = document.getElementById("new-agent-desc");
-  const newAgentCategory = document.getElementById("new-agent-category");
-
-  let customAgents = JSON.parse(localStorage.getItem("ai-groupware-custom-agents") || "[]");
-
-  function renderCustomAgents() {
-    if (!agentCardsEl) return;
-    customAgents.forEach(function (agent) {
-      addAgentCard(agent);
-      addAgentMenuItem(agent);
-    });
+  // ---------- 공통: 저장소 ----------
+  var STORAGE_PREFIX = "ai-groupware-";
+  function readJSON(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw == null ? fallback : JSON.parse(raw);
+    } catch (e) {
+      return fallback;
+    }
   }
-
-  function addAgentCard(agent) {
-    var card = document.createElement("article");
-    card.className = "agent-card";
-    card.dataset.agent = agent.id;
-    card.innerHTML =
-      '<div class="agent-card-icon">' + (agent.icon || "◆") + "</div>" +
-      "<h3 class=\"agent-card-title\">" + escapeHtml(agent.name) + "</h3>" +
-      "<p class=\"agent-card-desc\">" + escapeHtml(agent.desc) + "</p>";
-    card.addEventListener("click", function () {
-      openAgent(agent.id);
-    });
-    if (!agentCardsEl) return;
-    if (cardAddAgent) agentCardsEl.insertBefore(card, cardAddAgent);
-    else agentCardsEl.appendChild(card);
-  }
-
-  function addAgentMenuItem(agent) {
-    if (!agentListEl) return;
-    var li = document.createElement("li");
-    var a = document.createElement("a");
-    a.href = "#";
-    a.className = "menu-item";
-    a.dataset.agent = agent.id;
-    a.textContent = agent.name;
-    a.addEventListener("click", function (e) {
-      e.preventDefault();
-      openAgent(agent.id);
-    });
-    li.appendChild(a);
-    agentListEl.appendChild(li);
+  function writeJSON(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      showToast("저장에 실패했습니다. 브라우저 저장공간을 확인하세요.");
+    }
   }
 
   function escapeHtml(s) {
     var div = document.createElement("div");
-    div.textContent = s;
+    div.textContent = s == null ? "" : String(s);
     return div.innerHTML;
   }
 
-  function openAddModal() {
-    newAgentName.value = "";
-    newAgentDesc.value = "";
-    newAgentCategory.value = "업무";
-    modal.hidden = false;
-    newAgentName.focus();
+  // ---------- 공통: 토스트 (실행취소 지원) ----------
+  var toastEl = document.getElementById("app-toast");
+  var toastTextEl = document.getElementById("app-toast-text");
+  var toastActionEl = document.getElementById("app-toast-action");
+  var toastTimer = null;
+  var toastUndo = null;
+  function showToast(text, undo) {
+    if (!toastEl) return;
+    toastTextEl.textContent = text;
+    toastUndo = undo || null;
+    toastActionEl.hidden = !undo;
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      toastEl.hidden = true;
+      toastUndo = null;
+    }, undo ? 6000 : 3000);
+  }
+  if (toastActionEl) {
+    toastActionEl.addEventListener("click", function () {
+      if (toastUndo) toastUndo();
+      toastUndo = null;
+      toastEl.hidden = true;
+    });
   }
 
-  function closeModal() {
-    modal.hidden = true;
+  // ---------- 공통: 모달 접근성 (포커스 이동·가두기·복귀, Esc) ----------
+  var FOCUSABLE = 'button:not([disabled]), [href], input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  function openModals() {
+    return Array.prototype.slice.call(document.querySelectorAll(".modal-overlay:not([hidden])"));
   }
-
-  function submitNewAgent() {
-    var name = newAgentName.value.trim();
-    var desc = newAgentDesc.value.trim();
-    var category = newAgentCategory.value;
-    if (!name) {
-      newAgentName.focus();
+  function topModal() {
+    var list = openModals();
+    list.sort(function (a, b) {
+      return (parseInt(getComputedStyle(a).zIndex, 10) || 0) - (parseInt(getComputedStyle(b).zIndex, 10) || 0);
+    });
+    return list[list.length - 1] || null;
+  }
+  // 모달을 연 버튼으로 포커스를 돌려주기 위해, 모달 밖에서 마지막으로 포커스된 요소를 기억
+  var lastOutsideFocus = null;
+  document.addEventListener("focusin", function (e) {
+    if (!e.target.closest(".modal-overlay")) lastOutsideFocus = e.target;
+  });
+  document.addEventListener("mousedown", function (e) {
+    var btn = e.target.closest && e.target.closest("button, [href]");
+    if (btn && !btn.closest(".modal-overlay")) lastOutsideFocus = btn;
+  });
+  document.querySelectorAll(".modal-overlay").forEach(function (overlay) {
+    var returnFocus = null;
+    new MutationObserver(function () {
+      if (!overlay.hidden) {
+        returnFocus = overlay.contains(document.activeElement) ? lastOutsideFocus : document.activeElement;
+        setTimeout(function () {
+          if (overlay.contains(document.activeElement)) return;
+          var first = overlay.querySelector(".modal-body " + FOCUSABLE.split(", ").join(", .modal-body ")) || overlay.querySelector(FOCUSABLE);
+          if (first) first.focus();
+        }, 0);
+      } else if (returnFocus && document.contains(returnFocus)) {
+        returnFocus.focus();
+        returnFocus = null;
+      }
+    }).observe(overlay, { attributes: true, attributeFilter: ["hidden"] });
+  });
+  document.addEventListener("keydown", function (e) {
+    var modalEl = topModal();
+    if (!modalEl) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      // 각 모달의 닫기 버튼을 눌러 상태 초기화 로직까지 실행
+      var closeBtn = modalEl.querySelector(".modal-close");
+      if (closeBtn) closeBtn.click();
+      else modalEl.hidden = true;
       return;
     }
-    var agent = {
-      id: "custom-" + Date.now(),
-      name: name,
-      desc: desc || "사용자 정의 에이전트",
-      category: category,
-      icon: "◆",
-    };
-    customAgents.push(agent);
-    localStorage.setItem("ai-groupware-custom-agents", JSON.stringify(customAgents));
-    addAgentCard(agent);
-    addAgentMenuItem(agent);
-    closeModal();
-  }
-
-  function openAgent(agentId) {
-    if (!agentId) return;
-    var url = agentId === "sales" ? "sales/sales.html" : "agent.html?agent=" + encodeURIComponent(agentId);
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
-  if (cardAddAgent) cardAddAgent.addEventListener("click", openAddModal);
-  if (modal) {
-    if (modalClose) modalClose.addEventListener("click", closeModal);
-    if (modalCancel) modalCancel.addEventListener("click", closeModal);
-    if (modalSubmit) modalSubmit.addEventListener("click", submitNewAgent);
-  modal.addEventListener("click", function (e) {
-    if (e.target === modal) closeModal();
+    if (e.key !== "Tab") return;
+    var items = Array.prototype.filter.call(modalEl.querySelectorAll(FOCUSABLE), function (el) {
+      return el.offsetParent !== null;
+    });
+    if (!items.length) return;
+    var first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    } else if (!modalEl.contains(document.activeElement)) {
+      e.preventDefault();
+      first.focus();
+    }
   });
+
+  // ---------- 내 정보 (회원·권한 데이터는 members.js) ----------
+  var me = GW.getCurrent();
+  var profile = { name: me.name, title: me.title || "" };
+  function renderProfile() {
+    var el = document.getElementById("sidebar-user-name");
+    if (el) el.textContent = (profile.name + " " + (profile.title || "")).trim();
+    var roleEl = document.getElementById("sidebar-user-role");
+    if (roleEl) {
+      roleEl.textContent = GW.roleLabel(me.role);
+      roleEl.className = "role-badge role-" + me.role;
+    }
+    var adminLink = document.getElementById("btn-admin");
+    if (adminLink) adminLink.hidden = !GW.isManager(me);
   }
+  renderProfile();
 
-  renderCustomAgents();
-
-  var CURRENT_USER = "김민철";
-  var SEED_VERSION = "v3-focus-inbox";
+  var CURRENT_USER = profile.name;
+  // 예시 데이터는 저장된 값이 전혀 없을 때(첫 방문)만 넣고, 이후에는 사용자 데이터를 절대 덮어쓰지 않음
+  var SAMPLE_KEY = STORAGE_PREFIX + "sample-data";
+  var ONBOARDING_KEY = STORAGE_PREFIX + "onboarding-done";
   var uiState = { searchQuery: "", workFilter: "open", focusFilter: "all" };
 
   function isoOffset(days) {
@@ -141,10 +163,8 @@
     if (part.length >= 3) return parseInt(part[1], 10) + "." + part[2];
     return dueDate;
   }
-  if (localStorage.getItem("ai-groupware-seed-ver") !== SEED_VERSION) {
-    localStorage.removeItem("ai-groupware-todos");
-    localStorage.removeItem("ai-groupware-work-instructions");
-    localStorage.setItem("ai-groupware-seed-ver", SEED_VERSION);
+  function markSampleSeeded() {
+    if (localStorage.getItem(ONBOARDING_KEY) == null) localStorage.setItem(SAMPLE_KEY, "1");
   }
 
   // ---------- To-do (단일 데이터 + 메인 목록 + 팝업) ----------
@@ -164,8 +184,8 @@
   var todoQuickDate = document.getElementById("todo-quick-date");
   var todoQuickAddBtn = document.getElementById("todo-quick-add-btn");
 
-  var todoData = JSON.parse(localStorage.getItem("ai-groupware-todos") || "[]");
-  if (todoData.length === 0) {
+  var todoData = readJSON("ai-groupware-todos", null);
+  if (!Array.isArray(todoData)) {
     todoData = [
       { id: "todo-1", text: "회의록 초안 작성", done: false, dueDate: isoOffset(0), assignee: CURRENT_USER },
       { id: "todo-2", text: "전표 검수 및 제출", done: false, dueDate: isoOffset(1), assignee: CURRENT_USER },
@@ -174,6 +194,7 @@
       { id: "todo-5", text: "주간 보고서 제출", done: false, dueDate: isoOffset(2), assignee: CURRENT_USER },
     ];
     saveTodos();
+    markSampleSeeded();
   }
   todoData.forEach(function (item) {
     if (item.dueDate === undefined) item.dueDate = "";
@@ -181,12 +202,16 @@
   });
 
   function saveTodos() {
-    localStorage.setItem("ai-groupware-todos", JSON.stringify(todoData));
+    writeJSON("ai-groupware-todos", todoData);
   }
 
   function renderMainTodoList() {
     if (!todoListEl) return;
     todoListEl.innerHTML = "";
+    if (!todoData.length) {
+      todoListEl.innerHTML = '<li class="list-empty">할 일이 없습니다. <kbd>T</kbd>를 눌러 바로 추가하세요.</li>';
+      return;
+    }
     todoData.forEach(function (item) {
       var li = document.createElement("li");
       var state = dueState(item.dueDate);
@@ -258,16 +283,28 @@
       });
     });
     todoModalList.querySelectorAll(".todo-modal-del-btn").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-        var id = btn.dataset.id;
-        todoData = todoData.filter(function (t) {
-          return t.id !== id;
-        });
-        saveTodos();
-        renderModalTodoList();
-        renderMainTodoList();
-        refreshEfficiencyUI();
+      btn.addEventListener("click", function () {
+        removeTodos([btn.dataset.id]);
       });
+    });
+  }
+
+  function rerenderTodos() {
+    saveTodos();
+    renderModalTodoList();
+    renderMainTodoList();
+    refreshEfficiencyUI();
+  }
+  function removeTodos(ids) {
+    var before = todoData.slice();
+    var removed = todoData.filter(function (t) { return ids.indexOf(t.id) !== -1; });
+    if (!removed.length) return;
+    todoData = todoData.filter(function (t) { return ids.indexOf(t.id) === -1; });
+    rerenderTodos();
+    var label = removed.length === 1 ? "'" + removed[0].text + "' 삭제됨" : "할 일 " + removed.length + "개 삭제됨";
+    showToast(label, function () {
+      todoData = before;
+      rerenderTodos();
     });
   }
 
@@ -338,22 +375,44 @@
       var ids = Array.prototype.map.call(checked, function (cb) {
         return cb.dataset.id;
       });
-      todoData = todoData.filter(function (t) {
-        return ids.indexOf(t.id) === -1;
-      });
-      saveTodos();
-      renderModalTodoList();
-      renderMainTodoList();
-      refreshEfficiencyUI();
+      removeTodos(ids);
     });
   }
 
-  // ---------- Agent 카드 클릭 (Next.js 메인에서는 Link 사용, 정적 index.html에서는 아래 동작) ----------
-  document.querySelectorAll(".agent-card:not(.agent-card-add)").forEach(function (card) {
-    if (card.tagName === "A") return;
+  // ---------- 업무 메뉴 카드: 메뉴 권한에 없는 등급이면 잠금 ----------
+  var menuPerms = GW.getPermissions();
+  document.querySelectorAll(".agent-card[data-agent]").forEach(function (card) {
+    if (GW.canAccess(card.dataset.agent, me)) return;
+    card.removeAttribute("href");
+    card.classList.remove("is-coming");
+    card.classList.add("is-locked");
+    card.setAttribute("aria-disabled", "true");
+    card.setAttribute("role", "link");
+    card.tabIndex = 0;
+    var badge = card.querySelector(".agent-card-badge");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "agent-card-badge";
+      card.insertBefore(badge, card.firstChild);
+    }
+    badge.textContent = "🔒 권한 없음";
+    var allowed = (menuPerms[card.dataset.agent] || []).map(GW.roleLabel).join("·");
+    var notify = function (e) {
+      e.stopImmediatePropagation();
+      var title = card.querySelector(".agent-card-title");
+      showToast((title ? title.textContent : "이 메뉴") + "은(는) " + allowed + " 등급만 사용할 수 있습니다.");
+    };
+    card.addEventListener("click", notify);
+    card.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") notify(e);
+    });
+  });
+
+  // ---------- 업무 메뉴 카드 (준비 중 카드는 안내만) ----------
+  document.querySelectorAll(".agent-card.is-coming").forEach(function (card) {
     card.addEventListener("click", function () {
-      var agentId = card.dataset.agent;
-      openAgent(agentId);
+      var title = card.querySelector(".agent-card-title");
+      showToast((title ? title.textContent : "이 기능") + "은(는) 준비 중입니다.");
     });
   });
 
@@ -366,8 +425,8 @@
   var modalWorkConfirm = document.getElementById("modal-work-instructions-confirm");
   var workModalListEl = document.getElementById("work-instructions-modal-list");
 
-  var workInstructionsData = JSON.parse(localStorage.getItem("ai-groupware-work-instructions") || "[]");
-  if (workInstructionsData.length === 0) {
+  var workInstructionsData = readJSON("ai-groupware-work-instructions", null);
+  if (!Array.isArray(workInstructionsData)) {
     workInstructionsData = [
       { id: "w1", text: "주간 정기회의록 요약 및 액션 아이템 정리", type: "urgent", dueDate: isoOffset(0), done: false, requester: "대표", assignee: CURRENT_USER },
       { id: "w2", text: "미처리 전표 분류 및 승인 요청", type: "urgent", dueDate: isoOffset(1), done: false, requester: "김철수", assignee: CURRENT_USER },
@@ -376,6 +435,7 @@
       { id: "w5", text: "팀 내부 메신저 미확인 메시지 확인", type: "normal", dueDate: isoOffset(2), done: false, requester: "최수진", assignee: CURRENT_USER },
     ];
     saveWorkInstructions();
+    markSampleSeeded();
   }
   workInstructionsData.forEach(function (item) {
     if (item.dueDate === undefined) item.dueDate = "";
@@ -392,7 +452,7 @@
   }
 
   function saveWorkInstructions() {
-    localStorage.setItem("ai-groupware-work-instructions", JSON.stringify(workInstructionsData));
+    writeJSON("ai-groupware-work-instructions", workInstructionsData);
   }
 
   function renderMainWorkList() {
@@ -400,7 +460,7 @@
     workInstructionsListEl.innerHTML = "";
     var num = 0;
     workInstructionsData.forEach(function (item) {
-      if (item.done && uiState.workFilter !== "all") return;
+      if (uiState.workFilter === "done" ? !item.done : item.done) return;
       if (uiState.workFilter === "urgent" && item.type !== "urgent") return;
       if (uiState.workFilter === "today" && dueState(item.dueDate) !== "today") return;
       if (uiState.workFilter === "open" && item.done) return;
@@ -408,7 +468,7 @@
       num++;
       var li = document.createElement("li");
       var state = dueState(item.dueDate);
-      li.className = "work-instructions-item work-instructions-grid-cols" + (state ? " is-" + state : "");
+      li.className = "work-instructions-item work-instructions-grid-cols" + (item.done ? " is-done" : state ? " is-" + state : "");
       li.dataset.id = item.id;
       var typeClass = item.type === "urgent" ? "urgent" : "normal";
       var typeLabel = item.type === "urgent" ? "긴급" : "일반";
@@ -424,9 +484,8 @@
     });
     if (num === 0) {
       var empty = document.createElement("li");
-      empty.className = "work-instructions-item";
-      empty.style.cssText = "display:block;padding:20px;text-align:center;color:#9ca3af;font-size:13px;";
-      empty.textContent = "조건에 맞는 요청이 없습니다.";
+      empty.className = "list-empty";
+      empty.textContent = workInstructionsData.length ? "조건에 맞는 요청이 없습니다." : "업무 요청이 없습니다. '관리'에서 추가할 수 있어요.";
       workInstructionsListEl.appendChild(empty);
     }
   }
@@ -496,6 +555,40 @@
     });
   }
 
+  var workAddBtn = document.getElementById("work-add-btn");
+  var workAddText = document.getElementById("work-add-text");
+  function addWorkInstruction() {
+    var text = workAddText.value.trim();
+    if (!text) {
+      workAddText.focus();
+      return;
+    }
+    workInstructionsData.unshift({
+      id: "w-" + Date.now(),
+      text: text,
+      type: document.getElementById("work-add-type").value,
+      dueDate: document.getElementById("work-add-date").value || "",
+      done: false,
+      requester: document.getElementById("work-add-requester").value.trim(),
+      assignee: CURRENT_USER,
+    });
+    saveWorkInstructions();
+    workAddText.value = "";
+    renderWorkModalList();
+    renderMainWorkList();
+    refreshEfficiencyUI();
+    workAddText.focus();
+  }
+  if (workAddBtn && workAddText) {
+    workAddBtn.addEventListener("click", addWorkInstruction);
+    workAddText.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addWorkInstruction();
+      }
+    });
+  }
+
   function openWorkModal() {
     if (modalWork) {
       modalWork.hidden = false;
@@ -539,7 +632,10 @@
         normalizeCalendarEvents(parsed);
         return parsed;
       }
-    } catch (e) {}
+    } catch (e) {
+      return {};
+    }
+    markSampleSeeded();
     var today = new Date();
     var key = function (dt) {
       var yy = dt.getFullYear(), mm = dt.getMonth(), dd = dt.getDate();
@@ -702,7 +798,25 @@
     }
     modal.hidden = false;
   }
+  function showCalendarTitleError() {
+    var err = document.getElementById("calendar-event-error");
+    var input = document.getElementById("calendar-event-title");
+    if (err) err.hidden = false;
+    if (input) {
+      input.setAttribute("aria-invalid", "true");
+      input.focus();
+    }
+  }
+  function clearCalendarTitleError() {
+    var err = document.getElementById("calendar-event-error");
+    var input = document.getElementById("calendar-event-title");
+    if (err) err.hidden = true;
+    if (input) input.removeAttribute("aria-invalid");
+  }
+  var calendarTitleInput = document.getElementById("calendar-event-title");
+  if (calendarTitleInput) calendarTitleInput.addEventListener("input", clearCalendarTitleError);
   function closeCalendarEventModal() {
+    clearCalendarTitleError();
     var modal = document.getElementById("modal-calendar-event");
     if (modal) modal.hidden = true;
   }
@@ -712,7 +826,7 @@
     var endTime = getCalendarEventTimeFromSelects("end");
     var title = (document.getElementById("calendar-event-title") || {}).value.trim();
     if (!dateStr) return;
-    if (!title) { alert("일정 제목을 입력해주세요."); return; }
+    if (!title) { showCalendarTitleError(); return; }
     if (!calendarEvents[dateStr]) calendarEvents[dateStr] = [];
     calendarEvents[dateStr].push({
       startTime: startTime,
@@ -731,7 +845,7 @@
     var eventIndex = editIndexInput ? parseInt(editIndexInput.value, 10) : -1;
     if (!dateStr || eventIndex < 0 || !calendarEvents[dateStr] || !calendarEvents[dateStr][eventIndex]) return;
     var title = (document.getElementById("calendar-event-title") || {}).value.trim();
-    if (!title) { alert("일정 제목을 입력해주세요."); return; }
+    if (!title) { showCalendarTitleError(); return; }
     calendarEvents[dateStr][eventIndex] = {
       startTime: getCalendarEventTimeFromSelects("start"),
       endTime: getCalendarEventTimeFromSelects("end"),
@@ -748,12 +862,19 @@
     var editIndexInput = document.getElementById("calendar-event-edit-index");
     var eventIndex = editIndexInput ? parseInt(editIndexInput.value, 10) : -1;
     if (!dateStr || eventIndex < 0 || !calendarEvents[dateStr] || !calendarEvents[dateStr][eventIndex]) return;
-    if (!confirm("이 일정을 삭제하시겠습니까?")) return;
-    calendarEvents[dateStr].splice(eventIndex, 1);
+    var removed = calendarEvents[dateStr].splice(eventIndex, 1)[0];
     saveCalendarEvents();
     calendarSelectedDate = dateStr;
     renderCalendarEvents(dateStr);
+    renderCalendar();
     closeCalendarEventModal();
+    showToast("일정 '" + (removed.title || "") + "' 삭제됨", function () {
+      if (!calendarEvents[dateStr]) calendarEvents[dateStr] = [];
+      calendarEvents[dateStr].splice(eventIndex, 0, removed);
+      saveCalendarEvents();
+      renderCalendarEvents(dateStr);
+      renderCalendar();
+    });
   }
 
   function renderCalendar() {
@@ -869,9 +990,26 @@
 
   if (btnMessengerToggle) {
     btnMessengerToggle.addEventListener("click", function () {
-      messengerPanel.classList.toggle("collapsed");
-      this.title = messengerPanel.classList.contains("collapsed") ? "패널 펼치기" : "패널 접기";
-      this.textContent = messengerPanel.classList.contains("collapsed") ? "▶" : "◀";
+      setMessengerCollapsed(!messengerPanel.classList.contains("collapsed"));
+    });
+  }
+  function setMessengerCollapsed(collapsed) {
+    if (!messengerPanel) return;
+    messengerPanel.classList.toggle("collapsed", collapsed);
+    if (btnMessengerToggle) {
+      btnMessengerToggle.setAttribute("aria-label", collapsed ? "패널 펼치기" : "패널 접기");
+      btnMessengerToggle.setAttribute("aria-expanded", String(!collapsed));
+      btnMessengerToggle.textContent = collapsed ? "" : "◀";
+    }
+  }
+  // 좁은 화면에서는 메신저를 접은 상태로 시작하고, 상단 '메시지' 버튼으로 연다
+  if (window.matchMedia("(max-width: 768px)").matches) setMessengerCollapsed(true);
+  var btnMessengerOpen = document.getElementById("btn-messenger-open");
+  if (btnMessengerOpen) {
+    btnMessengerOpen.addEventListener("click", function () {
+      var willOpen = messengerPanel.classList.contains("collapsed");
+      setMessengerCollapsed(!willOpen);
+      if (willOpen && chatInput) chatInput.focus();
     });
   }
 
@@ -891,13 +1029,17 @@
       { sender: "이영희", text: "결재 승인해 주세요", time: "14:15", isSelf: false },
     ],
   };
-  var chatHistory = JSON.parse(localStorage.getItem("ai-groupware-chat-history") || "{}");
+  var chatHistory = readJSON("ai-groupware-chat-history", null);
+  if (!chatHistory || typeof chatHistory !== "object") {
+    chatHistory = {};
+    markSampleSeeded();
+  }
   ["team", "user2", "user3"].forEach(function (rid) {
     if (!chatHistory[rid]) chatHistory[rid] = defaultChatHistory[rid].slice();
   });
 
   function saveChatHistory() {
-    localStorage.setItem("ai-groupware-chat-history", JSON.stringify(chatHistory));
+    writeJSON("ai-groupware-chat-history", chatHistory);
   }
 
   function renderChatMessages(roomId) {
@@ -934,6 +1076,8 @@
         r.classList.remove("active");
       });
     roomEl.classList.add("active");
+    var badge = roomEl.querySelector(".room-badge");
+    if (badge) badge.remove();
     var name = roomEl.querySelector(".room-name");
     var participants = roomEl.dataset.participants || "0";
       if (name && chatRoomTitle) chatRoomTitle.textContent = name.textContent;
@@ -949,18 +1093,9 @@
   renderChatMessages(currentRoomId);
 
   // ---------- 조직도 (전체 인원 리스트 + 채팅 생성) ----------
-  var orgMembers = [
-    { id: "org-1", name: "대표", role: "대표" },
-    { id: "org-2", name: "김민철", role: "과장" },
-    { id: "org-3", name: "김철수", role: "팀장" },
-    { id: "org-4", name: "이영희", role: "대리" },
-    { id: "org-5", name: "박지훈", role: "사원" },
-    { id: "org-6", name: "최수진", role: "대리" },
-    { id: "org-7", name: "정대호", role: "사원" },
-    { id: "org-8", name: "한소희", role: "사원" },
-    { id: "org-9", name: "윤서준", role: "대리" },
-    { id: "org-10", name: "임도현", role: "사원" },
-  ];
+  var orgMembers = GW.activeMembers().map(function (m) {
+    return { id: "org-member-" + m.id, memberId: m.id, name: m.name, role: m.title || "" };
+  });
   var modalOrg = document.getElementById("modal-org");
   var modalOrgClose = document.getElementById("modal-org-close");
   var modalOrgCancel = document.getElementById("modal-org-cancel");
@@ -1031,17 +1166,18 @@
     var roomName = names.length <= 3 ? names.join(", ") : names.slice(0, 2).join(", ") + " 외 " + (names.length - 2) + "명";
     var roomId = "group-" + Date.now();
     var firstChar = names[0] ? names[0].charAt(0) : "G";
-    var roomEl = document.createElement("div");
+    var roomEl = document.createElement("button");
+    roomEl.type = "button";
     var participantCount = names.length + 1;
     roomEl.className = "messenger-room";
     roomEl.dataset.room = roomId;
     roomEl.dataset.participants = participantCount;
     roomEl.innerHTML =
       '<span class="room-avatar">' + firstChar + "</span>" +
-      '<div class="room-info">' +
+      '<span class="room-info">' +
       '<span class="room-name">' + escapeHtml(roomName) + "</span>" +
       '<span class="room-preview">채팅방이 생성되었습니다. 체크한 인원이 초대되었습니다.</span>' +
-      "</div>";
+      "</span>";
     if (!chatHistory[roomId]) chatHistory[roomId] = [];
     saveChatHistory();
     messengerListEl.insertBefore(roomEl, messengerListEl.firstChild);
@@ -1162,7 +1298,8 @@
 
     var listEl = document.getElementById("today-focus-list");
     if (!listEl) return;
-    var filtered = filterFocusItems(all, uiState.focusFilter).slice(0, 8);
+    var allFiltered = filterFocusItems(all, uiState.focusFilter);
+    var filtered = allFiltered.slice(0, 8);
     listEl.innerHTML = "";
     if (filtered.length === 0) {
       listEl.innerHTML = '<li class="today-focus-empty">처리할 항목이 없습니다. 잘하고 있어요.</li>';
@@ -1172,6 +1309,7 @@
       var li = document.createElement("li");
       var state = dueState(item.dueDate);
       li.className = "today-focus-item" + (item.done ? " is-done" : "");
+      li.tabIndex = 0;
       li.dataset.id = item.id;
       li.dataset.kind = item.kind;
       var kindLabel = item.kind === "work" ? "요청" : "할일";
@@ -1184,26 +1322,42 @@
         '<button type="button" class="agent-queue-action focus-complete-btn" data-id="' + item.id + '" data-kind="' + item.kind + '">완료</button>';
       listEl.appendChild(li);
     });
+    if (allFiltered.length > filtered.length) {
+      var more = document.createElement("li");
+      more.className = "today-focus-more";
+      more.textContent = "외 " + (allFiltered.length - filtered.length) + "건 더 있음 · 아래 목록에서 확인하세요";
+      listEl.appendChild(more);
+    }
     listEl.querySelectorAll(".focus-complete-btn").forEach(function (btn) {
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
         var id = btn.dataset.id;
         var kind = btn.dataset.kind;
-        if (kind === "work") {
-          var w = workInstructionsData.find(function (x) { return x.id === id; });
-          if (w) w.done = true;
-          saveWorkInstructions();
-          renderMainWorkList();
-        } else {
-          var t = todoData.find(function (x) { return x.id === id; });
-          if (t) t.done = true;
-          saveTodos();
-          renderMainTodoList();
-        }
-        refreshEfficiencyUI();
+        var list = kind === "work" ? workInstructionsData : todoData;
+        var target = list.find(function (x) { return x.id === id; });
+        if (!target) return;
+        var setDone = function (value) {
+          target.done = value;
+          if (kind === "work") {
+            saveWorkInstructions();
+            renderMainWorkList();
+          } else {
+            saveTodos();
+            renderMainTodoList();
+          }
+          refreshEfficiencyUI();
+        };
+        setDone(true);
+        showToast("'" + target.text + "' 완료", function () { setDone(false); });
       });
     });
     listEl.querySelectorAll(".today-focus-item").forEach(function (row) {
+      row.addEventListener("keydown", function (e) {
+        if ((e.key === "Enter" || e.key === " ") && e.target === row) {
+          e.preventDefault();
+          row.click();
+        }
+      });
       row.addEventListener("click", function (e) {
         if (e.target.closest(".focus-complete-btn")) return;
         if (row.dataset.kind === "work") {
@@ -1250,8 +1404,12 @@
   if (workFilterTabs) {
     workFilterTabs.querySelectorAll(".list-filter-tab").forEach(function (tab) {
       tab.addEventListener("click", function () {
-        workFilterTabs.querySelectorAll(".list-filter-tab").forEach(function (t) { t.classList.remove("is-active"); });
+        workFilterTabs.querySelectorAll(".list-filter-tab").forEach(function (t) {
+          t.classList.remove("is-active");
+          t.setAttribute("aria-pressed", "false");
+        });
         tab.classList.add("is-active");
+        tab.setAttribute("aria-pressed", "true");
         uiState.workFilter = tab.dataset.filter || "open";
         renderMainWorkList();
       });
@@ -1259,11 +1417,16 @@
   }
 
   var focusChips = document.getElementById("today-focus-chips");
+  function setActiveFocusChip(chip) {
+    focusChips.querySelectorAll(".focus-chip").forEach(function (c) {
+      c.classList.toggle("is-active", c === chip);
+      c.setAttribute("aria-pressed", String(c === chip));
+    });
+  }
   if (focusChips) {
     focusChips.querySelectorAll(".focus-chip").forEach(function (chip) {
       chip.addEventListener("click", function () {
-        focusChips.querySelectorAll(".focus-chip").forEach(function (c) { c.classList.remove("is-active"); });
-        chip.classList.add("is-active");
+        setActiveFocusChip(chip);
         uiState.focusFilter = chip.dataset.focus || "all";
         refreshEfficiencyUI();
       });
@@ -1285,14 +1448,13 @@
     inboxBtn.addEventListener("click", function () {
       var focus = document.getElementById("today-focus");
       if (focusChips) {
-        focusChips.querySelectorAll(".focus-chip").forEach(function (c) { c.classList.remove("is-active"); });
         var overdueChip = focusChips.querySelector('[data-focus="overdue"]');
         var todayChip = focusChips.querySelector('[data-focus="today"]');
         var target = (document.getElementById("focus-overdue-count") && Number(document.getElementById("focus-overdue-count").textContent) > 0)
           ? overdueChip
           : todayChip;
         if (target) {
-          target.classList.add("is-active");
+          setActiveFocusChip(target);
           uiState.focusFilter = target.dataset.focus || "today";
         } else {
           uiState.focusFilter = "all";
@@ -1308,11 +1470,7 @@
   document.addEventListener("keydown", function (e) {
     var tag = (e.target && e.target.tagName) || "";
     var typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target && e.target.isContentEditable);
-    if (e.key === "Escape") {
-      document.querySelectorAll(".modal-overlay:not([hidden])").forEach(function (m) { m.hidden = true; });
-      return;
-    }
-    if (typing) return;
+    if (typing || topModal()) return;
     if (e.key === "/") {
       e.preventDefault();
       if (globalSearch) globalSearch.focus();
@@ -1321,6 +1479,141 @@
       if (todoQuickInput) todoQuickInput.focus();
     }
   });
+
+  // ---------- 시작하기 안내 (예시 데이터 정리) ----------
+  var onboardingEl = document.getElementById("onboarding");
+  function finishOnboarding() {
+    localStorage.setItem(ONBOARDING_KEY, "1");
+    localStorage.removeItem(SAMPLE_KEY);
+    if (onboardingEl) onboardingEl.hidden = true;
+  }
+  if (onboardingEl && localStorage.getItem(ONBOARDING_KEY) == null) {
+    onboardingEl.hidden = false;
+    var sampleNote = onboardingEl.querySelector(".onboarding-note");
+    var clearBtn = document.getElementById("onboarding-clear");
+    var dismissBtn = document.getElementById("onboarding-dismiss");
+    if (localStorage.getItem(SAMPLE_KEY) == null) {
+      // 예시 데이터가 없으면 안내만 보여줌
+      if (sampleNote) sampleNote.hidden = true;
+      if (clearBtn) clearBtn.hidden = true;
+      if (dismissBtn) dismissBtn.textContent = "확인";
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function () {
+        todoData = [];
+        workInstructionsData = [];
+        Object.keys(calendarEvents).forEach(function (k) { delete calendarEvents[k]; });
+        Object.keys(chatHistory).forEach(function (k) { chatHistory[k] = []; });
+        saveTodos();
+        saveWorkInstructions();
+        saveCalendarEvents();
+        saveChatHistory();
+        document.querySelectorAll(".messenger-room .room-badge").forEach(function (b) { b.remove(); });
+        document.querySelectorAll(".messenger-room .room-preview").forEach(function (p) { p.textContent = ""; });
+        renderMainWorkList();
+        renderMainTodoList();
+        renderCalendar();
+        renderCalendarEvents(calendarSelectedDate);
+        renderChatMessages(currentRoomId);
+        refreshEfficiencyUI();
+        finishOnboarding();
+        showToast("예시 데이터를 지웠습니다. 이제 직접 입력해 보세요.");
+      });
+    }
+    if (dismissBtn) dismissBtn.addEventListener("click", finishOnboarding);
+  }
+
+  // ---------- 계정관리 (이름·직급, 전체 백업/복원) ----------
+  var modalAccount = document.getElementById("modal-account");
+  var accountName = document.getElementById("account-name");
+  var accountTitle = document.getElementById("account-title");
+  function closeAccountModal() {
+    if (modalAccount) modalAccount.hidden = true;
+  }
+  var btnAccount = document.getElementById("btn-account-settings");
+  if (btnAccount && modalAccount) {
+    var accountSwitch = document.getElementById("account-switch");
+    btnAccount.addEventListener("click", function () {
+      accountName.value = profile.name;
+      accountTitle.value = profile.title || "";
+      var roleEl = document.getElementById("account-role");
+      if (roleEl) roleEl.textContent = GW.roleLabel(me.role) + (GW.isMaster(me) ? "" : " · 등급 변경은 마스터에게 요청하세요");
+      if (accountSwitch) {
+        accountSwitch.innerHTML = GW.activeMembers().map(function (m) {
+          return '<option value="' + escapeHtml(m.id) + '"' + (m.id === me.id ? " selected" : "") + ">" +
+            escapeHtml(m.name + (m.title ? " " + m.title : "") + " · " + GW.roleLabel(m.role)) + "</option>";
+        }).join("");
+      }
+      modalAccount.hidden = false;
+    });
+    var switchBtn = document.getElementById("account-switch-btn");
+    if (switchBtn && accountSwitch) {
+      switchBtn.addEventListener("click", function () {
+        if (accountSwitch.value === me.id) {
+          closeAccountModal();
+          return;
+        }
+        if (GW.setCurrent(accountSwitch.value)) location.reload();
+      });
+    }
+    document.getElementById("modal-account-close").addEventListener("click", closeAccountModal);
+    document.getElementById("modal-account-cancel").addEventListener("click", closeAccountModal);
+    modalAccount.addEventListener("click", function (e) {
+      if (e.target === modalAccount) closeAccountModal();
+    });
+    document.getElementById("modal-account-save").addEventListener("click", function () {
+      var name = accountName.value.trim();
+      if (!name) {
+        accountName.focus();
+        return;
+      }
+      var allMembers = GW.getMembers();
+      if (allMembers.some(function (m) { return m.id !== me.id && m.name === name; })) {
+        showToast("같은 이름의 회원이 이미 있습니다.");
+        accountName.focus();
+        return;
+      }
+      var oldName = profile.name;
+      profile = { name: name, title: accountTitle.value.trim() };
+      allMembers.forEach(function (m) {
+        if (m.id === me.id) {
+          m.name = profile.name;
+          m.title = profile.title;
+        }
+      });
+      GW.saveMembers(allMembers);
+      me = GW.getCurrent();
+      // 기존 내 담당 항목의 담당자 이름도 함께 변경
+      todoData.concat(workInstructionsData).forEach(function (item) {
+        if (item.assignee === oldName) item.assignee = name;
+      });
+      orgMembers.forEach(function (m) {
+        if (m.memberId === me.id) {
+          m.name = name;
+          m.role = profile.title;
+        }
+      });
+      CURRENT_USER = name;
+      saveTodos();
+      saveWorkInstructions();
+      renderProfile();
+      refreshEfficiencyUI();
+      closeAccountModal();
+      showToast("내 정보를 저장했습니다.");
+    });
+
+    document.getElementById("account-backup").addEventListener("click", GW.backup);
+    var restoreFile = document.getElementById("account-restore-file");
+    document.getElementById("account-restore").addEventListener("click", function () { restoreFile.click(); });
+    restoreFile.addEventListener("change", function () {
+      var file = restoreFile.files && restoreFile.files[0];
+      if (!file) return;
+      GW.restore(file, function (err) {
+        if (err) showToast(err);
+        restoreFile.value = "";
+      });
+    });
+  }
 
   renderMainWorkList();
   renderMainTodoList();
