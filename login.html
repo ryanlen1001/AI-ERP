@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - Ryanlen ERP</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--background); }
+        .login-card { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 32px 28px; box-shadow: 0 8px 30px rgba(17, 24, 39, 0.06); }
+        .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; font-weight: 700; font-size: 17px; }
+        .login-logo { width: 32px; height: 32px; border-radius: 8px; background: var(--primary); color: var(--primary-fg); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+        .login-card h1 { font-size: 20px; margin: 0 0 6px; }
+        .login-desc { margin: 0 0 18px; color: var(--muted-strong); font-size: 13px; line-height: 1.5; }
+        .login-card .modal-input { width: 100%; }
+        .login-card .btn-primary { width: 100%; margin-top: 18px; height: 40px; }
+        .login-links { margin-top: 16px; text-align: center; font-size: 13px; color: var(--muted-strong); }
+        .login-link { background: none; border: 0; padding: 0; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; }
+        .login-link:hover { text-decoration: underline; }
+        .signup-dialog { width: 92vw; max-width: 400px; padding: 0; border: 1px solid var(--border); border-radius: 12px; }
+        .signup-dialog::backdrop { background: rgba(17, 24, 39, 0.45); }
+        .signup-dialog form { padding: 22px; }
+        .signup-dialog h3 { margin: 0 0 4px; font-size: 17px; }
+        .signup-dialog .modal-input { width: 100%; }
+        .signup-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+        .login-error { margin: 12px 0 0; color: var(--danger, #dc2626); font-size: 13px; min-height: 18px; }
+    </style>
+</head>
+<body>
+    <main class="login-card">
+        <div class="login-brand"><span class="login-logo" aria-hidden="true">R</span>RYANLEN ERP</div>
+        <h1 id="login-title">로그인</h1>
+        <p class="login-desc" id="login-desc"></p>
+        <form id="login-form" autocomplete="on">
+            <div id="key-row" hidden>
+                <label class="modal-label" for="login-key">설정 키</label>
+                <input type="password" class="modal-input" id="login-key" autocomplete="off">
+            </div>
+            <label class="modal-label" for="login-username">아이디</label>
+            <input type="text" class="modal-input" id="login-username" name="username" autocomplete="username" autocapitalize="none" required autofocus>
+            <label class="modal-label" for="login-password">비밀번호</label>
+            <input type="password" class="modal-input" id="login-password" name="password" autocomplete="current-password">
+            <div id="confirm-row" hidden>
+                <label class="modal-label" for="login-password2">비밀번호 확인</label>
+                <input type="password" class="modal-input" id="login-password2" autocomplete="new-password">
+            </div>
+            <p class="login-error" id="login-error" role="alert"></p>
+            <button type="submit" class="btn-primary" id="login-submit">로그인</button>
+        </form>
+        <p class="login-links" id="login-links">계정이 없나요? <button type="button" class="login-link" id="btn-signup">가입 요청</button><br>
+            비밀번호를 잊으셨나요? <button type="button" class="login-link" id="btn-reset">비밀번호 초기화 요청</button></p>
+    </main>
+    <dialog class="signup-dialog" id="signup-dialog">
+        <form id="signup-form" method="dialog" autocomplete="off">
+            <h3>가입 요청</h3>
+            <p class="login-desc">정보를 입력하고 요청하면 관리자가 확인한 뒤 승인합니다. 승인되면 입력한 아이디와 초기 비밀번호(1234)로 로그인한 뒤, 새 비밀번호를 설정합니다.</p>
+            <label class="modal-label" for="signup-name">이름</label>
+            <input type="text" class="modal-input" id="signup-name" maxlength="20" required>
+            <label class="modal-label" for="signup-username">희망 아이디</label>
+            <input type="text" class="modal-input" id="signup-username" maxlength="40" autocapitalize="none" required placeholder="3자 이상 (글자·숫자 . _ - @)">
+            <label class="modal-label" for="signup-phone">전화번호</label>
+            <input type="tel" class="modal-input" id="signup-phone" maxlength="20" placeholder="010-0000-0000" required>
+            <label class="modal-label" for="signup-email">이메일</label>
+            <input type="email" class="modal-input" id="signup-email" maxlength="80" required>
+            <p class="login-error" id="signup-error" role="alert"></p>
+            <div class="signup-footer">
+                <button type="button" class="btn-secondary" id="signup-cancel">취소</button>
+                <button type="submit" class="btn-primary" id="signup-submit">요청</button>
+            </div>
+        </form>
+    </dialog>
+    <dialog class="signup-dialog" id="reset-dialog">
+        <form id="reset-form" method="dialog" autocomplete="off">
+            <h3>비밀번호 초기화 요청</h3>
+            <p class="login-desc">이름과 아이디를 입력해 요청하면 관리자가 확인한 뒤 비밀번호를 초기 비밀번호로 되돌립니다. 처리되면 안내받은 초기 비밀번호로 로그인해 새 비밀번호를 설정하세요.</p>
+            <label class="modal-label" for="reset-name">이름</label>
+            <input type="text" class="modal-input" id="reset-name" maxlength="20" required>
+            <label class="modal-label" for="reset-username">아이디</label>
+            <input type="text" class="modal-input" id="reset-username" maxlength="40" autocapitalize="none" required>
+            <p class="login-error" id="reset-error" role="alert"></p>
+            <div class="signup-footer">
+                <button type="button" class="btn-secondary" id="reset-cancel">취소</button>
+                <button type="submit" class="btn-primary" id="reset-submit">요청</button>
+            </div>
+        </form>
+    </dialog>
+    <script>
+    (function () {
+        var mode = "login"; // login | setup | create(초기 비밀번호 → 새 비밀번호)
+        var initialPassword = ""; // 초기 비밀번호로 로그인한 값(새 비밀번호 설정 때 다시 확인)
+        var form = document.getElementById("login-form");
+        var errorEl = document.getElementById("login-error");
+        var $ = function (id) { return document.getElementById(id); };
+
+        function nextUrl() {
+            var next = new URLSearchParams(location.search).get("next") || "/index.html";
+            // 같은 사이트 안의 경로만 허용
+            return /^\/(?!\/)/.test(next) && next.indexOf("/login.html") !== 0 ? next : "/index.html";
+        }
+        function post(url, body) {
+            return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+                .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); });
+        }
+
+        function setMode(next, info) {
+            mode = next;
+            errorEl.textContent = "";
+            $("confirm-row").hidden = next === "login";
+            $("key-row").hidden = next !== "setup" || !(info && info.keyRequired);
+            $("login-links").hidden = next !== "login";
+            $("login-password").autocomplete = next === "login" ? "current-password" : "new-password";
+            $("login-password").value = "";
+            $("login-password2").value = "";
+            if (next === "login") {
+                $("login-title").textContent = "로그인";
+                $("login-desc").textContent = "아이디와 비밀번호를 입력하세요. 가입이 승인된 직후라면 안내받으신 초기 비밀번호를 입력하세요.";
+                $("login-submit").textContent = "로그인";
+                $("login-username").readOnly = false;
+            } else if (next === "setup") {
+                $("login-title").textContent = "최초 설정";
+                $("login-desc").textContent = "마스터 계정의 아이디와 비밀번호를 정하세요. 다른 직원은 가입 요청 후 관리자가 승인합니다.";
+                $("login-submit").textContent = "계정 만들기";
+            } else {
+                $("login-title").textContent = "비밀번호 설정";
+                $("login-desc").textContent = "초기 비밀번호로 로그인했습니다. 앞으로 사용할 새 비밀번호를 설정하세요. 설정한 비밀번호는 관리자도 볼 수 없습니다.";
+                $("login-submit").textContent = "비밀번호 설정하고 로그인";
+                $("login-username").readOnly = true;
+                $("login-password").focus();
+            }
+        }
+
+        fetch("/api/status").then(function (r) { return r.json(); }).then(function (st) {
+            if (st.setup) setMode("setup", st);
+            else setMode("login");
+        }).catch(function () {
+            errorEl.textContent = "서버에 연결할 수 없습니다.";
+        });
+
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            errorEl.textContent = "";
+            errorEl.style.color = "";
+            var username = $("login-username").value.trim();
+            var password = $("login-password").value;
+            var req;
+            if (mode === "setup" || mode === "create") {
+                if (password !== $("login-password2").value) {
+                    errorEl.textContent = "비밀번호 확인이 일치하지 않습니다.";
+                    return;
+                }
+                req = mode === "setup"
+                    ? post("/api/setup", { username: username, password: password, key: $("login-key").value })
+                    : post("/api/create-password", { username: username, current: initialPassword, password: password });
+            } else {
+                req = post("/api/login", { username: username, password: password });
+            }
+            req.then(function (res) {
+                if (res.ok && res.data.mustChange) {
+                    initialPassword = password;
+                    setMode("create");
+                }
+                else if (res.ok) location.replace(nextUrl());
+                else errorEl.textContent = res.data.error || "실패했습니다.";
+            }).catch(function () { errorEl.textContent = "서버에 연결할 수 없습니다."; });
+        });
+
+        // ---------- 가입 요청 ----------
+        var dialog = $("signup-dialog");
+        $("btn-signup").addEventListener("click", function () {
+            $("signup-form").reset();
+            $("signup-error").textContent = "";
+            $("signup-submit").disabled = false;
+            dialog.showModal();
+            $("signup-name").focus();
+        });
+        $("signup-cancel").addEventListener("click", function () { dialog.close(); });
+        $("signup-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            $("signup-error").textContent = "";
+            $("signup-submit").disabled = true;
+            post("/api/signup", { name: $("signup-name").value, username: $("signup-username").value, phone: $("signup-phone").value, email: $("signup-email").value })
+                .then(function (res) {
+                    if (res.ok) {
+                        dialog.close();
+                        errorEl.style.color = "var(--primary)";
+                        errorEl.textContent = "가입을 요청했습니다. 승인되면 입력한 아이디와 초기 비밀번호(1234)로 로그인하세요.";
+                    } else {
+                        $("signup-error").textContent = res.data.error || "요청하지 못했습니다.";
+                        $("signup-submit").disabled = false;
+                    }
+                }).catch(function () {
+                    $("signup-error").textContent = "서버에 연결할 수 없습니다.";
+                    $("signup-submit").disabled = false;
+                });
+        });
+
+        // ---------- 비밀번호 초기화 요청 ----------
+        var resetDialog = $("reset-dialog");
+        $("btn-reset").addEventListener("click", function () {
+            $("reset-form").reset();
+            $("reset-error").textContent = "";
+            $("reset-submit").disabled = false;
+            resetDialog.showModal();
+            $("reset-name").focus();
+        });
+        $("reset-cancel").addEventListener("click", function () { resetDialog.close(); });
+        $("reset-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            $("reset-error").textContent = "";
+            $("reset-submit").disabled = true;
+            post("/api/reset-request", { name: $("reset-name").value, username: $("reset-username").value })
+                .then(function (res) {
+                    if (res.ok) {
+                        resetDialog.close();
+                        errorEl.style.color = "var(--primary)";
+                        errorEl.textContent = "초기화를 요청했습니다. 입력한 이름과 아이디가 맞으면 관리자에게 전달되며, 처리되면 안내받은 초기 비밀번호로 로그인하세요.";
+                    } else {
+                        $("reset-error").textContent = res.data.error || "요청하지 못했습니다.";
+                        $("reset-submit").disabled = false;
+                    }
+                }).catch(function () {
+                    $("reset-error").textContent = "서버에 연결할 수 없습니다.";
+                    $("reset-submit").disabled = false;
+                });
+        });
+    })();
+    </script>
+</body>
+</html>

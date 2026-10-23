@@ -29,6 +29,7 @@
 
   // 메뉴별 기본 접근 등급 (마스터는 항상 접근 가능)
   var MENUS = [
+    { id: "directory", label: "회원정보", href: "members/members.html", defaultRoles: ALL_ROLES },
     { id: "cost", label: "비용관리", href: "cost/cost.html", defaultRoles: ["master", "admin"] },
     { id: "sales", label: "프로젝트 관리", href: "sales/sales.html", defaultRoles: ALL_ROLES },
     { id: "meeting", label: "회의록", defaultRoles: ALL_ROLES },
@@ -260,7 +261,15 @@
     return false;
   }
 
+  // 서버 세션을 끝내고 로그인 화면으로 이동
+  function logout() {
+    fetch("/api/logout", { method: "POST" }).then(function () {
+      location.href = "/login.html";
+    });
+  }
+
   window.GW = {
+    logout: logout,
     PREFIX: PREFIX,
     ROLES: ROLES,
     ALL_ROLES: ALL_ROLES,

@@ -97,14 +97,169 @@
                 </section>
             </div>
 
-            <div class="cost-grid" id="cost-entry">
-                <!-- 지출 입력 -->
-                <section class="cost-card" aria-labelledby="cost-form-title">
+            <!-- 지출 내역 -->
+            <section class="cost-card cost-ledger" aria-labelledby="cost-ledger-title">
+                <div class="cost-card-head">
+                    <h2 class="cost-card-title" id="cost-ledger-title">지출 내역</h2>
+                    <span class="cost-card-meta" id="cost-ledger-meta"></span>
+                </div>
+                <div class="cost-filters">
+                    <select id="flt-month" aria-label="월 필터"></select>
+                    <select id="flt-category" aria-label="분류 필터"></select>
+                    <input type="search" id="flt-search" placeholder="내용·거래처·메모 검색" aria-label="검색">
+                    <label class="cost-check"><input type="checkbox" id="flt-noevidence"> 증빙 누락만</label>
+                    <label class="cost-check"><input type="checkbox" id="flt-unsettled"> 미정산 개인결제만</label>
+                </div>
+                <div class="cost-table-wrap">
+                    <table class="cost-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">날짜</th>
+                                <th scope="col">분류</th>
+                                <th scope="col">내용 / 거래처</th>
+                                <th scope="col">결제</th>
+                                <th scope="col">증빙</th>
+                                <th scope="col" class="num">금액</th>
+                                <th scope="col"><span class="sr-only">작업</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cost-tbody"></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5">합계</td>
+                                <td class="num" id="cost-tfoot-total">0원</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </section>
+
+            <div class="cost-grid">
+                <!-- 자금 출처 -->
+                <section class="cost-card" aria-labelledby="cost-fund-title">
                     <div class="cost-card-head">
-                        <h2 class="cost-card-title" id="cost-form-title">지출 입력</h2>
-                        <button type="button" class="cost-link-btn" id="cost-form-cancel" hidden>수정 취소</button>
+                        <h2 class="cost-card-title" id="cost-fund-title">자금 출처</h2>
+                        <span class="cost-card-meta" id="cost-fund-meta"></span>
+                        <button type="button" class="btn-secondary btn-sm" id="cost-fund-add">+ 자금 추가</button>
                     </div>
-                    <form class="cost-form" id="cost-form" autocomplete="off">
+                    <ul class="cost-rec-list" id="fund-list"></ul>
+                        <p class="admin-help cost-help">대출 상환액은 산정표에 '매월' 항목으로 넣으면 운영비에 반영됩니다. 입금 예정일을 넣으면 월별 자금 흐름에 그 달 유입으로 잡힙니다.</p>
+                </section>
+
+                <!-- 월별 자금 흐름 -->
+                <section class="cost-card" aria-labelledby="cost-flow-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-flow-title">월별 자금 흐름</h2>
+                        <span class="cost-card-meta" id="cost-flow-meta"></span>
+                    </div>
+                    <div class="cost-table-wrap cost-flow-wrap">
+                        <table class="cost-table cost-flow-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">월</th>
+                                    <th scope="col" class="num">유입</th>
+                                    <th scope="col" class="num">계획 지출</th>
+                                    <th scope="col" class="num">실제 지출</th>
+                                    <th scope="col" class="num">월말 잔액</th>
+                                </tr>
+                            </thead>
+                            <tbody id="flow-tbody"></tbody>
+                        </table>
+                    </div>
+                    <p class="admin-help cost-help">잔액은 지난달까지 실제 지출, 이번 달은 계획과 실제 중 큰 금액, 다음 달부터는 계획 지출로 계산합니다.</p>
+                </section>
+            </div>
+
+
+            <div class="cost-grid">
+                <!-- 정기 지출 -->
+                <section class="cost-card" aria-labelledby="cost-rec-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-rec-title">정기 지출 (고정비)</h2>
+                        <span class="cost-card-meta" id="cost-rec-meta"></span>
+                        <button type="button" class="btn-secondary btn-sm" id="cost-rec-add">+ 정기 지출 등록</button>
+                    </div>
+                    <ul class="cost-rec-list" id="cost-rec-list"></ul>
+                    <div class="cost-rec-apply-row">
+                        <input type="month" id="rec-month" aria-label="고정비를 반영할 월">
+                        <button type="button" class="btn-primary cost-rec-apply" id="cost-rec-apply">고정비 반영</button>
+                    </div>
+                </section>
+
+                <!-- 초기 투자비 산정 (요약) -->
+                <section class="cost-card cost-plan" id="cost-plan" aria-labelledby="cost-plan-title">
+                    <div class="cost-card-head">
+                        <div>
+                            <h2 class="cost-card-title" id="cost-plan-title">초기 투자비 산정</h2>
+                            <p class="cost-card-desc">앞으로 쓸 비용을 산정표에 적으면 필요한 자금이 계산됩니다.</p>
+                        </div>
+                        <button type="button" class="btn-secondary btn-sm" id="plan-open">산정표 편집</button>
+                    </div>
+                    <aside class="cost-plan-summary" id="plan-summary" aria-label="필요 자금 계산 결과"></aside>
+                </section>
+            </div>
+    </div>
+
+    <!-- 초기 투자비 산정표 -->
+    <div class="modal-overlay" id="modal-plan" hidden>
+        <div class="modal cost-plan-modal" role="dialog" aria-modal="true" aria-labelledby="cost-plan-modal-title">
+            <div class="modal-header">
+                <h3 id="cost-plan-modal-title">초기 투자비 산정표</h3>
+                <button type="button" class="btn-secondary btn-sm" id="plan-template" style="margin-left:auto;margin-right:8px">자주 쓰는 항목 불러오기</button>
+                <button type="button" class="modal-close" data-close-modal aria-label="닫기">&times;</button>
+            </div>
+            <div class="modal-body cost-popup-body">
+                <p class="cost-card-desc">앞으로 쓸 비용을 적으면 필요한 자금이 계산됩니다. 실제로 쓰면 <b>집행</b>을 눌러 지출 내역에 기록하세요.</p>
+                <div class="cost-plan-main">
+                        <div class="cost-plan-params">
+                            <label>운영 기간 <input type="number" id="p-months" min="1" max="36" inputmode="numeric"> 개월</label>
+                            <label>예비비 <input type="number" id="p-reserve" min="0" max="50" inputmode="numeric"> %</label>
+                            <label title="인건비(매월) 항목에 회사 부담 4대보험료를 더해 계산합니다">인건비 4대보험 회사부담 <input type="number" id="p-insurance" min="0" max="30" inputmode="numeric"> %</label>
+                            <span class="cost-plan-start" id="p-start-note"></span>
+                        </div>
+                        <div class="cost-table-wrap">
+                            <table class="cost-table cost-plan-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">항목</th>
+                                        <th scope="col">분류</th>
+                                        <th scope="col">유형</th>
+                                        <th scope="col">시점</th>
+                                        <th scope="col" class="num">금액</th>
+                                        <th scope="col" class="num">산정액</th>
+                                        <th scope="col">집행</th>
+                                        <th scope="col"><span class="sr-only">삭제</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="plan-tbody"></tbody>
+                            </table>
+                        </div>
+                        <form class="cost-plan-add" id="plan-add-form" autocomplete="off">
+                            <input type="text" id="pa-name" maxlength="40" placeholder="항목 (예: 노트북 2대)" aria-label="계획 항목" required>
+                            <select id="pa-category" aria-label="분류"></select>
+                            <select id="pa-type" aria-label="유형"></select>
+                            <input type="text" id="pa-amount" inputmode="numeric" placeholder="금액" aria-label="금액">
+                            <button type="submit" class="btn-secondary">항목 추가</button>
+                        </form>
+                    </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-primary" data-close-modal>닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 지출 입력·수정 -->
+    <div class="modal-overlay" id="modal-expense" hidden>
+        <div class="modal cost-form-modal" role="dialog" aria-modal="true" aria-labelledby="cost-form-title">
+            <div class="modal-header">
+                <h3 id="cost-form-title">지출 입력</h3>
+                <button type="button" class="modal-close" data-close-modal aria-label="닫기">&times;</button>
+            </div>
+            <form id="cost-form" autocomplete="off">
+                <div class="modal-body cost-popup-body">
+                    <div class="cost-form">
                         <div class="cost-form-row">
                             <label class="cost-field">
                                 <span>날짜</span>
@@ -151,160 +306,71 @@
                             </label>
                         </div>
                         <p class="cost-form-hint" id="f-hint"></p>
-                        <div class="cost-form-actions">
-                            <button type="submit" class="btn-primary" id="f-submit">추가</button>
-                        </div>
-                    </form>
-                </section>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="cost-form-cancel">취소</button>
+                    <button type="button" class="btn-secondary" id="f-submit-more">저장하고 계속 입력</button>
+                    <button type="submit" class="btn-primary" id="f-submit">추가</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-                <!-- 정기 지출 -->
-                <section class="cost-card" aria-labelledby="cost-rec-title">
-                    <div class="cost-card-head">
-                        <h2 class="cost-card-title" id="cost-rec-title">정기 지출 (고정비)</h2>
-                        <span class="cost-card-meta" id="cost-rec-meta"></span>
-                    </div>
-                    <ul class="cost-rec-list" id="cost-rec-list"></ul>
-                    <form class="cost-rec-form" id="cost-rec-form" autocomplete="off">
-                        <input type="text" id="r-name" maxlength="40" placeholder="항목 (예: 노션 구독)" aria-label="정기 지출 항목" required>
-                        <input type="text" id="r-amount" inputmode="numeric" placeholder="월 금액" aria-label="월 금액" required>
-                        <input type="number" id="r-day" min="1" max="31" value="1" aria-label="매월 결제일" title="매월 결제일">
-                        <select id="r-category" aria-label="분류"></select>
-                        <select id="r-method" aria-label="결제수단"></select>
-                        <button type="submit" class="btn-secondary">등록</button>
-                    </form>
-                    <div class="cost-rec-apply-row">
-                        <input type="month" id="rec-month" aria-label="고정비를 반영할 월">
-                        <button type="button" class="btn-primary cost-rec-apply" id="cost-rec-apply">고정비 반영</button>
-                    </div>
-                </section>
+    <!-- 정기 지출 등록 -->
+    <div class="modal-overlay" id="modal-recurring" hidden>
+        <div class="modal cost-form-modal" role="dialog" aria-modal="true" aria-labelledby="cost-rec-form-title">
+            <div class="modal-header">
+                <h3 id="cost-rec-form-title">정기 지출 등록</h3>
+                <button type="button" class="modal-close" data-close-modal aria-label="닫기">&times;</button>
             </div>
-
-            <!-- 지출 내역 -->
-            <section class="cost-card cost-ledger" aria-labelledby="cost-ledger-title">
-                <div class="cost-card-head">
-                    <h2 class="cost-card-title" id="cost-ledger-title">지출 내역</h2>
-                    <span class="cost-card-meta" id="cost-ledger-meta"></span>
-                </div>
-                <div class="cost-filters">
-                    <select id="flt-month" aria-label="월 필터"></select>
-                    <select id="flt-category" aria-label="분류 필터"></select>
-                    <input type="search" id="flt-search" placeholder="내용·거래처·메모 검색" aria-label="검색">
-                    <label class="cost-check"><input type="checkbox" id="flt-noevidence"> 증빙 누락만</label>
-                    <label class="cost-check"><input type="checkbox" id="flt-unsettled"> 미정산 개인결제만</label>
-                </div>
-                <div class="cost-table-wrap">
-                    <table class="cost-table">
-                        <thead>
-                            <tr>
-                                <th scope="col">날짜</th>
-                                <th scope="col">분류</th>
-                                <th scope="col">내용 / 거래처</th>
-                                <th scope="col">결제</th>
-                                <th scope="col">증빙</th>
-                                <th scope="col" class="num">금액</th>
-                                <th scope="col"><span class="sr-only">작업</span></th>
-                            </tr>
-                        </thead>
-                        <tbody id="cost-tbody"></tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="5">합계</td>
-                                <td class="num" id="cost-tfoot-total">0원</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </section>
-
-            <div class="cost-grid">
-                <!-- 자금 출처 -->
-                <section class="cost-card" aria-labelledby="cost-fund-title">
-                    <div class="cost-card-head">
-                        <h2 class="cost-card-title" id="cost-fund-title">자금 출처</h2>
-                        <span class="cost-card-meta" id="cost-fund-meta"></span>
+            <form id="cost-rec-form" autocomplete="off">
+                <div class="modal-body cost-popup-body">
+                    <div class="cost-form">
+                        <label class="cost-field"><span>항목</span><input type="text" id="r-name" maxlength="40" placeholder="예: 노션 구독" required></label>
+                        <div class="cost-form-row">
+                            <label class="cost-field"><span>월 금액 (원)</span><input type="text" id="r-amount" inputmode="numeric" placeholder="0" required></label>
+                            <label class="cost-field"><span>매월 결제일</span><input type="number" id="r-day" min="1" max="31" value="1"></label>
+                        </div>
+                        <div class="cost-form-row">
+                            <label class="cost-field"><span>분류</span><select id="r-category"></select></label>
+                            <label class="cost-field"><span>결제수단</span><select id="r-method"></select></label>
+                        </div>
                     </div>
-                    <ul class="cost-rec-list" id="fund-list"></ul>
-                    <form class="cost-rec-form cost-fund-form" id="fund-form" autocomplete="off">
-                        <select id="fd-type" aria-label="자금 종류"></select>
-                        <input type="text" id="fd-name" maxlength="40" placeholder="내용 (예: 창업자 출자)" aria-label="자금 내용">
-                        <input type="text" id="fd-amount" inputmode="numeric" placeholder="금액" aria-label="금액" required>
-                        <input type="date" id="fd-date" aria-label="입금(예정)일" title="입금일 또는 입금 예정일">
-                        <button type="submit" class="btn-secondary">추가</button>
-                    </form>
-                        <p class="admin-help cost-help">대출 상환액은 아래 산정표에 '매월' 항목으로 넣으면 운영비에 반영됩니다. 입금 예정일을 넣으면 월별 자금 흐름에 그 달 유입으로 잡힙니다.</p>
-                </section>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-close-modal>취소</button>
+                    <button type="submit" class="btn-primary">등록</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-                <!-- 월별 자금 흐름 -->
-                <section class="cost-card" aria-labelledby="cost-flow-title">
-                    <div class="cost-card-head">
-                        <h2 class="cost-card-title" id="cost-flow-title">월별 자금 흐름</h2>
-                        <span class="cost-card-meta" id="cost-flow-meta"></span>
-                    </div>
-                    <div class="cost-table-wrap cost-flow-wrap">
-                        <table class="cost-table cost-flow-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">월</th>
-                                    <th scope="col" class="num">유입</th>
-                                    <th scope="col" class="num">계획 지출</th>
-                                    <th scope="col" class="num">실제 지출</th>
-                                    <th scope="col" class="num">월말 잔액</th>
-                                </tr>
-                            </thead>
-                            <tbody id="flow-tbody"></tbody>
-                        </table>
-                    </div>
-                    <p class="admin-help cost-help">잔액은 지난달까지 실제 지출, 이번 달은 계획과 실제 중 큰 금액, 다음 달부터는 계획 지출로 계산합니다.</p>
-                </section>
+    <!-- 자금 추가 -->
+    <div class="modal-overlay" id="modal-fund" hidden>
+        <div class="modal cost-form-modal" role="dialog" aria-modal="true" aria-labelledby="cost-fund-form-title">
+            <div class="modal-header">
+                <h3 id="cost-fund-form-title">자금 추가</h3>
+                <button type="button" class="modal-close" data-close-modal aria-label="닫기">&times;</button>
             </div>
-
-
-            <!-- 초기 투자비 산정 -->
-            <section class="cost-card cost-plan" id="cost-plan" aria-labelledby="cost-plan-title">
-                <div class="cost-card-head">
-                    <div>
-                        <h2 class="cost-card-title" id="cost-plan-title">초기 투자비 산정</h2>
-                        <p class="cost-card-desc">앞으로 쓸 비용을 적으면 필요한 자금이 계산됩니다. 실제로 쓰면 <b>집행</b>을 눌러 지출 내역에 기록하세요.</p>
-                    </div>
-                    <button type="button" class="btn-secondary" id="plan-template">자주 쓰는 항목 불러오기</button>
-                </div>
-                <div class="cost-plan-layout">
-                    <div class="cost-plan-main">
-                        <div class="cost-plan-params">
-                            <label>운영 기간 <input type="number" id="p-months" min="1" max="36" inputmode="numeric"> 개월</label>
-                            <label>예비비 <input type="number" id="p-reserve" min="0" max="50" inputmode="numeric"> %</label>
-                            <label title="인건비(매월) 항목에 회사 부담 4대보험료를 더해 계산합니다">인건비 4대보험 회사부담 <input type="number" id="p-insurance" min="0" max="30" inputmode="numeric"> %</label>
-                            <span class="cost-plan-start" id="p-start-note"></span>
+            <form id="fund-form" autocomplete="off">
+                <div class="modal-body cost-popup-body">
+                    <div class="cost-form">
+                        <div class="cost-form-row">
+                            <label class="cost-field"><span>종류</span><select id="fd-type"></select></label>
+                            <label class="cost-field"><span>금액 (원)</span><input type="text" id="fd-amount" inputmode="numeric" placeholder="0" required></label>
                         </div>
-                        <div class="cost-table-wrap">
-                            <table class="cost-table cost-plan-table">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">항목</th>
-                                        <th scope="col">분류</th>
-                                        <th scope="col">유형</th>
-                                        <th scope="col">시점</th>
-                                        <th scope="col" class="num">금액</th>
-                                        <th scope="col" class="num">산정액</th>
-                                        <th scope="col">집행</th>
-                                        <th scope="col"><span class="sr-only">삭제</span></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="plan-tbody"></tbody>
-                            </table>
-                        </div>
-                        <form class="cost-plan-add" id="plan-add-form" autocomplete="off">
-                            <input type="text" id="pa-name" maxlength="40" placeholder="항목 (예: 노트북 2대)" aria-label="계획 항목" required>
-                            <select id="pa-category" aria-label="분류"></select>
-                            <select id="pa-type" aria-label="유형"></select>
-                            <input type="text" id="pa-amount" inputmode="numeric" placeholder="금액" aria-label="금액">
-                            <button type="submit" class="btn-secondary">항목 추가</button>
-                        </form>
+                        <label class="cost-field"><span>내용</span><input type="text" id="fd-name" maxlength="40" placeholder="예: 창업자 출자"></label>
+                        <label class="cost-field"><span>입금(예정)일</span><input type="date" id="fd-date" title="입금일 또는 입금 예정일"></label>
+                        <p class="cost-form-hint">입금 예정일을 넣으면 월별 자금 흐름에 그 달 유입으로 잡힙니다.</p>
                     </div>
-                    <aside class="cost-plan-summary" id="plan-summary" aria-label="필요 자금 계산 결과"></aside>
                 </div>
-            </section>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-close-modal>취소</button>
+                    <button type="submit" class="btn-primary">추가</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- 자금·예산 설정 -->
@@ -607,7 +673,10 @@
         var fHint = document.getElementById("f-hint");
         var fSubmit = document.getElementById("f-submit");
         var fCancel = document.getElementById("cost-form-cancel");
+        var fMore = document.getElementById("f-submit-more");
         var form = document.getElementById("cost-form");
+        var expenseModal = document.getElementById("modal-expense");
+        var keepOpen = false;
         fillOptions(fCategory, CATEGORIES);
         fillOptions(fMethod, METHODS);
         fillOptions(fEvidence, EVIDENCES);
@@ -664,8 +733,19 @@
         // ---------- 지출 추가/수정 ----------
         var editingId = null;
         var planLink = null;
+        function openExpense() { expenseModal.hidden = false; }
+        function closeExpense() {
+            expenseModal.hidden = true;
+            resetForm();
+        }
+        fMore.addEventListener("click", function () {
+            keepOpen = true;
+            form.requestSubmit();
+        });
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            var more = keepOpen;
+            keepOpen = false;
             var amount = parseAmount(fAmount.value);
             var item = fItem.value.trim();
             if (!amount) { fAmount.focus(); showToast("금액을 입력하세요."); return; }
@@ -688,7 +768,7 @@
                     if (data.method !== "personal") target.settled = false;
                 }
                 showToast("수정했습니다.");
-                resetForm();
+                closeExpense();
             } else {
                 data.id = uid("exp");
                 data.settled = false;
@@ -696,9 +776,8 @@
                 if (planLink) data.planId = planLink.id;
                 state.expenses.push(data);
                 showToast(data.item + " " + won(amount) + " 추가됨" + (planLink ? " · 산정표 집행 반영" : ""));
-                if (planLink) {
-                    resetForm();
-                    document.getElementById("cost-plan").scrollIntoView({ behavior: "smooth", block: "start" });
+                if (planLink || !more) {
+                    closeExpense();
                 } else {
                     // 연속 입력을 위해 날짜·분류·결제수단은 유지
                     fAmount.value = "";
@@ -728,10 +807,10 @@
             fMemo.value = e.memo || "";
             planLink = null;
             fSubmit.textContent = "수정 저장";
-            fCancel.hidden = false;
+            fMore.hidden = true;
             document.getElementById("cost-form-title").textContent = "지출 수정";
             updateFormHint();
-            form.scrollIntoView({ behavior: "smooth", block: "start" });
+            openExpense();
             fItem.focus();
         }
         function resetForm() {
@@ -742,17 +821,17 @@
             fVendor.value = "";
             fMemo.value = "";
             fSubmit.textContent = "추가";
-            fCancel.hidden = true;
+            fMore.hidden = false;
             document.getElementById("cost-form-title").textContent = "지출 입력";
             updateFormHint();
         }
-        fCancel.addEventListener("click", resetForm);
+        fCancel.addEventListener("click", closeExpense);
 
         function deleteExpense(id) {
             var idx = state.expenses.findIndex(function (x) { return x.id === id; });
             if (idx === -1) return;
             var removed = state.expenses.splice(idx, 1)[0];
-            if (editingId === id) resetForm();
+            if (editingId === id) closeExpense();
             save();
             render();
             showToast("'" + removed.item + "' 삭제됨", function () {
@@ -773,10 +852,10 @@
             fCategory.value = item.category;
             fKind.value = item.type === "deposit" ? "deposit" : "once";
             fSubmit.textContent = "집행 기록";
-            fCancel.hidden = false;
+            fMore.hidden = true;
             document.getElementById("cost-form-title").textContent = "집행 기록 · " + item.name;
             updateFormHint();
-            form.scrollIntoView({ behavior: "smooth", block: "start" });
+            openExpense();
             fAmount.focus();
         }
 
@@ -885,7 +964,7 @@
             if (short) items.unshift({ tone: "danger", text: short.slice(0, 4) + "년 " + monthLabel(short) + "에 잔액이 마이너스가 됩니다", action: "flow" });
 
             if (!state.expenses.length && !state.funding.length && !state.plan.items.length) {
-                el.innerHTML = '<div class="cost-onboard"><strong>시작하기</strong> ① 맨 아래 <b>초기 투자비 산정</b>에서 <b>자주 쓰는 항목 불러오기</b> 후 금액을 넣어 필요 자금 확인 → ② 그 위 <b>자금 출처</b>에 자본금·대출 등 확보한 돈 입력 → ③ 돈을 쓸 때마다 오른쪽 위 <b>+ 지출 입력</b>으로 기록하면 이 위쪽에 현황과 그래프가 채워집니다. 데이터는 이 브라우저에만 저장되니 주기적으로 <b>백업</b>하세요.</div>';
+                el.innerHTML = '<div class="cost-onboard"><strong>시작하기</strong> ① <b>초기 투자비 산정</b>의 <b>산정표 편집</b>에서 <b>자주 쓰는 항목 불러오기</b> 후 금액을 넣어 필요 자금 확인 → ② <b>자금 출처</b>의 <b>+ 자금 추가</b>로 자본금·대출 등 확보한 돈 입력 → ③ 돈을 쓸 때마다 오른쪽 위 <b>+ 지출 입력</b>으로 기록하면 이 화면에 현황과 그래프가 채워집니다.</div>';
                 return;
             }
             el.innerHTML = items.map(function (it, i) {
@@ -1050,7 +1129,7 @@
                 (plan.required
                     ? '<button type="button" class="cost-usage-plan" data-go="cost-plan">산정한 필요 자금 ' + wonShort(plan.required) + " 중 " +
                       Math.min(100, Math.round(capital / plan.required * 100)) + "% 확보" + (capital < plan.required ? " · " + wonShort(plan.required - capital) + " 더 필요" : "") + " →</button>"
-                    : '<button type="button" class="cost-usage-plan" data-go="cost-plan">필요한 총 투자비를 계산하려면 맨 아래 <b>초기 투자비 산정</b>을 이용하세요 →</button>');
+                    : '<button type="button" class="cost-usage-plan" data-go="cost-plan">필요한 총 투자비를 계산하려면 <b>초기 투자비 산정</b>의 <b>산정표 편집</b>을 이용하세요 →</button>');
         }
 
         // 월말 잔액 막대 그래프 (0원 기준선 아래는 빨간색)
@@ -1101,8 +1180,43 @@
             if (btn) document.getElementById(btn.dataset.go).scrollIntoView({ behavior: "smooth", block: "start" });
         });
         document.getElementById("cost-quick-add").addEventListener("click", function () {
-            document.getElementById("cost-entry").scrollIntoView({ behavior: "smooth", block: "start" });
-            fAmount.focus({ preventScroll: true });
+            resetForm();
+            fDate.value = todayIso();
+            openExpense();
+            fAmount.focus();
+        });
+
+        // ---------- 입력 팝업 공통: 닫기 버튼·바깥 클릭·Esc ----------
+        // 화면에 나온 순서(아래에 있을수록 위에 겹쳐 보임)대로 둔다. Esc는 가장 위 팝업부터 닫는다
+        var POPUP_CLOSERS = {
+            "modal-plan": function () { document.getElementById("modal-plan").hidden = true; },
+            "modal-expense": function () { closeExpense(); },
+            "modal-recurring": function () { document.getElementById("modal-recurring").hidden = true; },
+            "modal-fund": function () { document.getElementById("modal-fund").hidden = true; }
+        };
+        Object.keys(POPUP_CLOSERS).forEach(function (id) {
+            var overlay = document.getElementById(id);
+            overlay.querySelectorAll("[data-close-modal]").forEach(function (btn) { btn.addEventListener("click", POPUP_CLOSERS[id]); });
+            overlay.addEventListener("click", function (e) { if (e.target === overlay) POPUP_CLOSERS[id](); });
+        });
+        document.addEventListener("keydown", function (e) {
+            if (e.key !== "Escape") return;
+            var open = Object.keys(POPUP_CLOSERS).map(function (id) { return document.getElementById(id); }).filter(function (m) { return !m.hidden; });
+            if (open.length) POPUP_CLOSERS[open[open.length - 1].id]();
+        });
+        document.getElementById("cost-rec-add").addEventListener("click", function () {
+            document.getElementById("cost-rec-form").reset();
+            document.getElementById("r-category").value = "rent";
+            document.getElementById("modal-recurring").hidden = false;
+            document.getElementById("r-name").focus();
+        });
+        document.getElementById("cost-fund-add").addEventListener("click", function () {
+            document.getElementById("fund-form").reset();
+            document.getElementById("modal-fund").hidden = false;
+            document.getElementById("fd-amount").focus();
+        });
+        document.getElementById("plan-open").addEventListener("click", function () {
+            document.getElementById("modal-plan").hidden = false;
         });
 
         function renderRecurring() {
@@ -1151,9 +1265,8 @@
             state.recurring.push({ id: uid("rec"), name: name, amount: amount, day: day, category: document.getElementById("r-category").value, method: document.getElementById("r-method").value });
             save();
             render();
-            document.getElementById("r-name").value = "";
-            document.getElementById("r-amount").value = "";
-            document.getElementById("r-name").focus();
+            document.getElementById("modal-recurring").hidden = true;
+            showToast("정기 지출 '" + name + "' 등록됨");
         });
 
         var recMonth = document.getElementById("rec-month");
@@ -1440,9 +1553,7 @@
             });
             save();
             render();
-            document.getElementById("fd-name").value = "";
-            amountEl.value = "";
-            document.getElementById("fd-date").value = "";
+            document.getElementById("modal-fund").hidden = true;
             showToast(labelOf(FUND_TYPES, type) + " " + won(amount) + " 추가됨");
         });
 

@@ -1813,109 +1813,17 @@
     if (dismissBtn) dismissBtn.addEventListener("click", finishOnboarding);
   }
 
-  // ---------- 계정관리 (이름·직급, 전체 백업/복원) ----------
-  var modalAccount = document.getElementById("modal-account");
-  var accountName = document.getElementById("account-name");
-  var accountTitle = document.getElementById("account-title");
-  function closeAccountModal() {
-    if (modalAccount) modalAccount.hidden = true;
-  }
-  var btnAccount = document.getElementById("btn-account-settings");
-  if (btnAccount && modalAccount) {
-    var accountSwitch = document.getElementById("account-switch");
-    btnAccount.addEventListener("click", function () {
-      accountName.value = profile.name;
-      accountTitle.value = profile.title || "";
-      var roleEl = document.getElementById("account-role");
-      if (roleEl) roleEl.textContent = GW.roleLabel(me.role) + (GW.isMaster(me) ? "" : " · 등급 변경은 마스터에게 요청하세요");
-      if (accountSwitch) {
-        accountSwitch.innerHTML = GW.activeMembers().map(function (m) {
-          return '<option value="' + escapeHtml(m.id) + '"' + (m.id === me.id ? " selected" : "") + ">" +
-            escapeHtml(m.name + (m.title ? " " + m.title : "") + " · " + GW.roleLabel(m.role)) + "</option>";
-        }).join("");
-      }
-      modalAccount.hidden = false;
-    });
-    var switchBtn = document.getElementById("account-switch-btn");
-    if (switchBtn && accountSwitch) {
-      switchBtn.addEventListener("click", function () {
-        if (accountSwitch.value === me.id) {
-          closeAccountModal();
-          return;
-        }
-        if (GW.setCurrent(accountSwitch.value)) location.reload();
-      });
-    }
-    document.getElementById("modal-account-close").addEventListener("click", closeAccountModal);
-    document.getElementById("modal-account-cancel").addEventListener("click", closeAccountModal);
-    modalAccount.addEventListener("click", function (e) {
-      if (e.target === modalAccount) closeAccountModal();
-    });
-    document.getElementById("modal-account-save").addEventListener("click", function () {
-      var name = accountName.value.trim();
-      if (!name) {
-        accountName.focus();
-        return;
-      }
-      var allMembers = GW.getMembers();
-      if (allMembers.some(function (m) { return m.id !== me.id && m.name === name; })) {
-        showToast("같은 이름의 회원이 이미 있습니다.");
-        accountName.focus();
-        return;
-      }
-      var oldName = profile.name;
-      profile = { name: name, title: accountTitle.value.trim() };
-      allMembers.forEach(function (m) {
-        if (m.id === me.id) {
-          m.name = profile.name;
-          m.title = profile.title;
-        }
-      });
-      GW.saveMembers(allMembers);
-      me = GW.getCurrent();
-      // 기존 내 담당 항목의 담당자 이름도 함께 변경
-      todoData.concat(workInstructionsData).forEach(function (item) {
-        if (item.assignee === oldName) item.assignee = name;
-      });
-      orgMembers.forEach(function (m) {
-        if (m.memberId === me.id) {
-          m.name = name;
-          m.role = profile.title;
-        }
-      });
-      CURRENT_USER = name;
-      saveTodos();
-      saveWorkInstructions();
-      renderProfile();
-      refreshEfficiencyUI();
-      closeAccountModal();
-      showToast("내 정보를 저장했습니다.");
-    });
-
-    document.getElementById("account-backup").addEventListener("click", GW.backup);
-    var restoreFile = document.getElementById("account-restore-file");
-    document.getElementById("account-restore").addEventListener("click", function () { restoreFile.click(); });
-    restoreFile.addEventListener("change", function () {
-      var file = restoreFile.files && restoreFile.files[0];
-      if (!file) return;
-      GW.restore(file, function (err) {
-        if (err) showToast(err);
-        restoreFile.value = "";
-      });
-    });
-  }
-
   renderMainWorkList();
   renderMainTodoList();
   refreshEfficiencyUI();
 
-  // 다른 화면에서 넘어온 요청 처리 (?q= 검색, ?account=1, ?chat=1)
+  // 다른 화면에서 넘어온 요청 처리 (?q= 검색, ?account=1(내 정보), ?chat=1)
   var params = new URLSearchParams(location.search);
   if (params.get("q") && globalSearch) {
     globalSearch.value = params.get("q");
     globalSearch.dispatchEvent(new Event("input"));
   }
-  if (params.get("account") && btnAccount) btnAccount.click();
+  if (params.get("account")) GW.openProfile(me);
   if (params.get("chat")) setMessengerCollapsed(false);
   if (params.toString()) history.replaceState(null, "", location.pathname);
 })();

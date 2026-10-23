@@ -737,3 +737,37 @@ button.cost-alert:hover { border-color: var(--border-strong); background: var(--
   .admin-log-list li { grid-template-columns: 1fr auto; }
   .admin-log-detail { grid-column: 1 / -1; }
 }
+
+/* 관리자 회원 표: 행별 수정·저장·취소 버튼 */
+.admin-actions .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.admin-inline-input:not([readonly]) { background: var(--card); border-color: var(--border-strong); }
+
+/* 회원 표 열 너비·간격 */
+.admin-table.admin-table-members { table-layout: fixed; min-width: 880px; }
+.admin-table th.col-name { width: 20%; }
+.admin-table th.col-title { width: 16%; }
+.admin-table th.col-role { width: 14%; }
+.admin-table th.col-status { width: 10%; }
+.admin-table th.col-account { width: 22%; }
+.admin-table th.col-actions { width: 18%; }
+.admin-table-members th,
+.admin-table-members td { padding: 12px 16px; }
+.admin-table-members .admin-name-cell .admin-inline-input { flex: 0 1 140px; min-width: 0; }
+.admin-table-members td:nth-child(5) { white-space: nowrap; }
+.admin-table-members td:nth-child(5) .btn-sm { margin-left: 10px; }
+.admin-account-none { color: var(--muted); }
+.admin-actions .btn-sm + .btn-sm { margin-left: 6px; }
+.btn-sm-danger { color: var(--danger); }
+.btn-sm-danger:hover { background: #fef2f2; border-color: #fecaca; }
+
+.admin-tab-badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.admin-table-signups td { padding: 12px 16px; }
+.admin-table-signups .admin-actions .btn-sm + .btn-sm { margin-left: 6px; }
+
+/* 비용관리: 입력 팝업 */
+.modal.cost-form-modal { max-width: 560px; }
+.modal.cost-plan-modal { max-width: 1100px; width: 96vw; }
+.cost-popup-body { max-height: 70vh; overflow-y: auto; }
+.cost-card-head .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; margin-left: auto; }
+.cost-card-head .cost-card-meta + .btn-sm { margin-left: 12px; }
+.cost-plan-modal .modal-header .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }

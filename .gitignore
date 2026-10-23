@@ -41,3 +41,7 @@ next-env.d.ts
 
 # 공유 서버 데이터
 data/
+
+# python
+__pycache__/
+*.pyc

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원정보 - Ryanlen ERP</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../agent.css">
+    <style>
+        .dir-table { table-layout: fixed; min-width: 820px; }
+        .dir-table th, .dir-table td { padding: 12px 16px; }
+        .dir-table .col-name { width: 18%; }
+        .dir-table .col-title { width: 14%; }
+        .dir-table .col-phone { width: 20%; }
+        .dir-table .col-email { width: 30%; }
+        .dir-table .col-actions { width: 18%; }
+        .dir-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dir-empty { color: var(--muted); }
+    </style>
+</head>
+<body data-page="directory">
+    <div class="admin-body" data-shell-content>
+        <div class="page-head">
+            <div class="page-head-main">
+                <span class="page-head-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+                <div>
+                    <h1 class="page-title">회원정보</h1>
+                    <p class="page-desc">직원 연락처를 확인하고, 내 정보(전화번호·이메일 등)를 직접 입력·수정합니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <section class="admin-card">
+            <div class="admin-filters">
+                <input type="search" id="dir-search" placeholder="이름·직급·연락처 검색" aria-label="회원 검색">
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table dir-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="col-name">이름</th>
+                            <th scope="col" class="col-title">직급</th>
+                            <th scope="col" class="col-phone">휴대전화</th>
+                            <th scope="col" class="col-email">이메일</th>
+                            <th scope="col" class="col-actions"><span class="sr-only">작업</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="dir-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="app-toast" id="app-toast" role="status" aria-live="polite" hidden>
+        <span id="app-toast-text"></span>
+        <button type="button" class="app-toast-action" id="app-toast-action" hidden>실행취소</button>
+    </div>
+
+    <script src="../sync.js"></script>
+    <script src="../members.js"></script>
+    <script src="../shell.js"></script>
+    <script>
+    (function () {
+        if (!GW.guardPage("directory", "../index.html")) return;
+
+        var me = GW.getCurrent();
+        var tbody = document.getElementById("dir-tbody");
+        var search = document.getElementById("dir-search");
+
+        function escapeHtml(s) {
+            var div = document.createElement("div");
+            div.textContent = s == null ? "" : String(s);
+            return div.innerHTML;
+        }
+        // 회원별 키(ai-groupware-profile-<id>)에 저장한다 — 서버는 본인 키만 쓰게 허용
+        function profileKey(id) { return GW.PREFIX + "profile-" + id; }
+        function getProfile(id) {
+            try {
+                return JSON.parse(localStorage.getItem(profileKey(id))) || {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function render() {
+            var q = search.value.trim().toLowerCase();
+            var rows = GW.activeMembers().map(function (m) {
+                return { m: m, p: getProfile(m.id) };
+            }).filter(function (r) {
+                var hay = [r.m.name, r.m.title, r.p.phone, r.p.email].join(" ").toLowerCase();
+                return !q || hay.indexOf(q) !== -1;
+            }).sort(function (a, b) {
+                if (a.m.id === me.id) return -1;
+                if (b.m.id === me.id) return 1;
+                return a.m.name.localeCompare(b.m.name, "ko");
+            });
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="list-empty">조건에 맞는 회원이 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map(function (r) {
+                var mine = r.m.id === me.id;
+                var dash = '<span class="dir-empty">—</span>';
+                return '<tr data-id="' + escapeHtml(r.m.id) + '">' +
+                    '<td><div class="admin-name-cell"><strong>' + escapeHtml(r.m.name) + "</strong>" + (mine ? '<span class="admin-me-tag">나</span>' : "") + "</div></td>" +
+                    "<td>" + (r.m.title ? escapeHtml(r.m.title) : dash) + "</td>" +
+                    "<td>" + (r.p.phone ? escapeHtml(r.p.phone) : dash) + "</td>" +
+                    "<td>" + (r.p.email ? escapeHtml(r.p.email) : dash) + "</td>" +
+                    '<td class="admin-actions"><button type="button" class="btn-secondary btn-sm" data-action="open">' + (mine ? "수정" : "보기") + "</button></td></tr>";
+            }).join("");
+        }
+
+        tbody.addEventListener("click", function (e) {
+            var btn = e.target.closest("button[data-action=open]");
+            if (!btn) return;
+            var m = GW.findMember(btn.closest("tr").dataset.id);
+            if (m) GW.openProfile(m, render);
+        });
+        search.addEventListener("input", render);
+        render();
+    })();
+    </script>
+</body>
+</html>

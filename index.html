@@ -325,41 +325,6 @@
         </div>
     </div>
 
-    <button type="button" id="btn-account-settings" hidden>계정관리</button>
-    <!-- 계정관리 팝업 -->
-    <div class="modal-overlay" id="modal-account" hidden>
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-account-title">
-            <div class="modal-header">
-                <h3 id="modal-account-title">계정관리</h3>
-                <button type="button" class="modal-close" id="modal-account-close" aria-label="닫기">&times;</button>
-            </div>
-            <div class="modal-body">
-                <label class="modal-label" for="account-name">이름</label>
-                <input type="text" class="modal-input" id="account-name" maxlength="20" placeholder="예: 홍길동">
-                <label class="modal-label" for="account-title">직급</label>
-                <input type="text" class="modal-input" id="account-title" maxlength="20" placeholder="예: 대표">
-                <p class="modal-desc">'내 담당' 필터와 할 일 담당자에 이 이름이 사용됩니다. 권한: <b id="account-role"></b></p>
-                <label class="modal-label" for="account-switch">사용자 전환</label>
-                <div class="account-switch-row">
-                    <select class="modal-select" id="account-switch"></select>
-                    <button type="button" class="btn-secondary" id="account-switch-btn">전환</button>
-                </div>
-                <p class="modal-desc">이 기기를 함께 쓰는 다른 회원으로 바꿉니다. 회원 추가·권한 변경은 관리자 페이지에서 할 수 있습니다.</p>
-                <label class="modal-label">데이터</label>
-                <p class="modal-desc">모든 데이터는 이 브라우저에만 저장됩니다. 브라우저 데이터를 지우면 사라지니 주기적으로 백업하세요. (비용관리 데이터 포함)</p>
-                <div class="account-data-actions">
-                    <button type="button" class="btn-secondary" id="account-backup">전체 백업</button>
-                    <button type="button" class="btn-secondary" id="account-restore">백업 복원</button>
-                    <input type="file" id="account-restore-file" accept="application/json,.json" hidden>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" id="modal-account-cancel">취소</button>
-                <button type="button" class="btn-primary" id="modal-account-save">저장</button>
-            </div>
-        </div>
-    </div>
-
     <div class="app-toast" id="app-toast" role="status" aria-live="polite" hidden>
         <span id="app-toast-text"></span>
         <button type="button" class="app-toast-action" id="app-toast-action" hidden>실행취소</button>

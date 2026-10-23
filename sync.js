@@ -4,6 +4,7 @@
  * - 페이지를 열 때 서버 데이터를 localStorage에 채워 넣고, 이후 localStorage 저장·삭제를 서버에 바로 반영한다.
  * - 각 화면 코드는 그대로 localStorage만 사용하면 된다.
  * - 다른 사람이 먼저 같은 데이터를 바꿨으면(버전 충돌) 덮어쓰지 않고 최신 내용으로 다시 불러온다.
+ * - 로그인하지 않았으면 login.html로 보내고, 로그인한 회원을 현재 사용자로 설정한다.
  * - 서버 API가 없으면(파일로 직접 열거나 일반 정적 서버) 아무것도 하지 않는다.
  */
 (function () {
@@ -36,6 +37,21 @@
       return null;
     }
   }
+
+  // 로그인 확인: 세션이 없으면 로그인 화면으로, 있으면 이 기기의 '현재 사용자'를 로그인한 회원으로 맞춘다
+  try {
+    var me = request("GET", "/api/me");
+    if (me.status === 401) {
+      location.replace("/login.html?next=" + encodeURIComponent(location.pathname + location.search));
+      return;
+    }
+    if (me.status === 200 && /json/.test(me.getResponseHeader("Content-Type") || "")) {
+      var info = JSON.parse(me.responseText);
+      if (info.memberId && localStorage.getItem("ai-groupware-current-member") !== info.memberId) {
+        localStorage.setItem("ai-groupware-current-member", info.memberId);
+      }
+    }
+  } catch (e) {}
 
   var server = fetchStore();
   if (!server) return;
@@ -100,6 +116,12 @@
       if (res.status === 409) {
         stopped = true;
         alert("다른 사람이 먼저 이 데이터를 수정했습니다.\n최신 내용으로 다시 불러옵니다. 방금 입력한 내용은 한 번 더 입력해 주세요.");
+        reload();
+        return;
+      }
+      if (res.status === 403) {
+        stopped = true;
+        alert("이 정보를 수정할 권한이 없어 저장되지 않았습니다.");
         reload();
         return;
       }
