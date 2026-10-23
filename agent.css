@@ -164,7 +164,7 @@ button.cost-alert:hover { border-color: var(--border-strong); background: var(--
   border-color: var(--ring);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
-#f-amount, #r-amount { text-align: right; font-variant-numeric: tabular-nums; }
+#f-amount, #r-amount, #fd-amount, #pa-amount { text-align: right; font-variant-numeric: tabular-nums; }
 .cost-form-hint { margin: 0; min-height: 1.45em; font-size: 12px; color: var(--warning); }
 .cost-form-actions { display: flex; justify-content: flex-end; }
 .cost-form-actions .btn-primary { min-width: 96px; padding: 9px 16px; }
@@ -227,7 +227,7 @@ button.cost-alert:hover { border-color: var(--border-strong); background: var(--
 }
 .cost-bars-avg span {
   position: absolute;
-  right: 0;
+  left: 0;
   top: -18px;
   font-size: 12px;
   color: var(--muted);
@@ -242,6 +242,84 @@ button.cost-alert:hover { border-color: var(--border-strong); background: var(--
   font-size: 12px;
   color: var(--muted);
 }
+
+.cost-bar-stack {
+  display: flex;
+  flex-direction: column;
+  width: min(36px, 70%);
+  border-radius: 4px 4px 0 0;
+  overflow: hidden;
+  opacity: 0.75;
+}
+.cost-bar-stack.is-current { opacity: 1; }
+.cost-bar-stack span { flex-basis: 0; min-height: 2px; }
+.cost-bar-stack .is-op,
+.cost-legend .is-op { background: var(--series-1); }
+.cost-bar-stack .is-other,
+.cost-legend .is-other { background: var(--series-soft); }
+.cost-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: flex-end; font-size: 12px; color: var(--muted-strong); }
+.cost-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.cost-legend i { width: 10px; height: 10px; border-radius: 3px; }
+.cost-card-meta.is-danger { color: var(--danger); font-weight: 650; }
+
+/* 투자금 사용 현황 */
+.cost-usage-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: var(--muted-bg); }
+.cost-usage-bar span { height: 100%; }
+.cost-usage-bar span + span { box-shadow: inset 2px 0 0 var(--card); }
+.cost-usage-bar .is-op,
+.cost-usage-legend .is-op i { background: var(--series-1); }
+.cost-usage-bar .is-once,
+.cost-usage-legend .is-once i { background: var(--accent); }
+.cost-usage-bar .is-deposit,
+.cost-usage-legend .is-deposit i { background: var(--info); }
+.cost-usage-bar .is-left,
+.cost-usage-legend .is-left i { background: var(--success-soft); box-shadow: inset 0 0 0 1px #bbe5c8; }
+.cost-usage-legend .is-over i { background: var(--danger); }
+.cost-usage-legend { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; }
+.cost-usage-legend li { display: grid; grid-template-columns: 10px 1fr auto auto; align-items: center; gap: 8px; font-size: 13px; }
+.cost-usage-legend i { width: 10px; height: 10px; border-radius: 3px; }
+.cost-usage-legend b { font-variant-numeric: tabular-nums; }
+.cost-usage-legend small { min-width: 34px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cost-usage-legend .is-left b { color: var(--success); }
+.cost-usage-legend .is-over b { color: var(--danger); }
+.cost-usage-top { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; }
+.cost-usage-top span { font-size: 12px; color: var(--muted); }
+.cost-usage-top em { font-style: normal; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.cost-usage-plan {
+  align-self: stretch;
+  padding: 9px 12px;
+  border: 1px dashed var(--accent-border);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.cost-usage-plan:hover { border-style: solid; }
+#cost-usage { display: flex; flex-direction: column; gap: 12px; }
+
+/* 잔액 전망 */
+.cost-outlook-bars { gap: 6px; height: 180px; }
+.cost-outlook-bars + .cost-bars-axis { gap: 6px; font-size: 11px; }
+.cost-outlook-bars .cost-bar-col { justify-content: initial; }
+.cost-outlook-bar {
+  position: absolute;
+  left: 50%;
+  width: min(26px, 72%);
+  transform: translateX(-50%);
+  border-radius: 3px;
+  background: var(--series-soft);
+}
+.cost-outlook-bar.is-past { background: var(--series-1); opacity: 0.55; }
+.cost-outlook-bar.is-current { background: var(--series-1); }
+.cost-outlook-bar.is-neg { background: var(--danger); opacity: 0.85; }
+.cost-outlook-zero { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border-strong); z-index: 1; pointer-events: none; }
+.cost-bars-axis .is-current { color: var(--foreground); font-weight: 650; }
+.cost-legend .is-past { background: var(--series-1); opacity: 0.55; }
+.cost-legend .is-current { background: var(--series-1); }
+.cost-legend .is-future { background: var(--series-soft); }
 
 /* 정기 지출 */
 .cost-rec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -259,8 +337,7 @@ button.cost-alert:hover { border-color: var(--border-strong); background: var(--
 .cost-rec-amount { font-variant-numeric: tabular-nums; }
 .cost-rec-state { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; }
 .cost-rec-state.is-done { background: #dcfce7; color: #166534; }
-.cost-rec-form { display: grid; grid-template-columns: 2fr 1.2fr 64px 1.4fr auto; gap: 8px; }
-.cost-rec-apply { align-self: flex-start; }
+.cost-rec-form { display: grid; grid-template-columns: 2fr 1.2fr 72px; gap: 8px; }
 .cost-rec-apply:disabled { background: var(--muted-bg); color: var(--muted); cursor: default; }
 
 /* 내역 테이블 */
@@ -290,6 +367,127 @@ button.cost-alert:hover { border-color: var(--border-strong); background: var(--
 .cost-pill.is-pending { background: #fef3c7; color: #92400e; }
 .cost-pill.is-ok { background: #dcfce7; color: #166534; }
 
+.cost-kind-tag { margin-left: 2px; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; background: var(--accent-soft); color: var(--accent-strong); white-space: nowrap; }
+.cost-kind-tag.is-deposit { background: var(--info-soft); color: var(--info); }
+.cost-kpi-value.is-short { color: var(--danger); }
+.cost-card-desc { margin: 4px 0 0; font-size: 12px; color: var(--muted); line-height: 1.6; }
+.cost-help { font-size: 12px; }
+.cost-rec-apply-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cost-rec-apply-row input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 13px;
+  color: var(--foreground);
+  background: var(--card);
+}
+.cost-fund-form { grid-template-columns: 1fr 1.4fr 1.1fr 1.5fr auto; }
+
+/* 초기 투자비 산정 */
+.cost-plan { border-color: var(--accent-border); }
+.cost-plan-layout { display: flex; flex-direction: column; gap: 16px; }
+.cost-plan-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cost-plan-params { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 13px; color: var(--ink-soft); }
+.cost-plan-params label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.cost-plan-params input {
+  width: 56px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 13px;
+  text-align: right;
+}
+.cost-plan-start { font-size: 12px; color: var(--muted); }
+.cost-plan-table { min-width: 860px; }
+.cost-plan-table td { padding: 5px 8px; }
+.cost-plan-table tr.is-monthly td:first-child { box-shadow: inset 3px 0 0 var(--series-soft); }
+.cost-plan-table tr.is-deposit td:first-child { box-shadow: inset 3px 0 0 var(--info); }
+.cost-plan-table tr.is-once td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.cost-plan-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--foreground);
+  min-width: 0;
+}
+.cost-plan-input:hover { border-color: var(--border); }
+.cost-plan-input:focus,
+.cost-plan-params input:focus,
+.cost-rec-apply-row input:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--accent-glow); background: var(--card); }
+.cost-plan-name { min-width: 140px; }
+.cost-plan-table select[data-field="category"] { min-width: 118px; }
+.cost-plan-table select[data-field="type"] { min-width: 72px; }
+.cost-plan-table select[data-field="offset"] { min-width: 128px; }
+.cost-plan-amount { width: 108px; text-align: right; font-variant-numeric: tabular-nums; }
+.cost-plan-amount.is-empty { background: var(--warning-soft); border-color: #fde3b5; }
+.cost-plan-total small { display: block; font-size: 11px; color: var(--muted); }
+.cost-plan-exec { white-space: nowrap; }
+.cost-plan-add { display: grid; grid-template-columns: 2fr 1.3fr 1fr 1.2fr auto; gap: 8px; }
+.cost-plan-add input,
+.cost-plan-add select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 13px;
+  color: var(--foreground);
+  background: var(--card);
+  min-width: 0;
+}
+.cost-plan-add input:focus,
+.cost-plan-add select:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+/* 기본: 결과를 표 위에 가로로, 넓은 화면에서는 표 오른쪽에 고정 */
+.cost-plan-summary {
+  order: -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  align-items: start;
+  padding: 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-lg);
+}
+.cost-plan-sum-block { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+@media (min-width: 1600px) {
+  .cost-plan-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; align-items: start; }
+  .cost-plan-summary { order: 0; grid-template-columns: 1fr; position: sticky; top: calc(var(--topbar-h) + 12px); }
+}
+.cost-plan-sum-empty { grid-column: 1 / -1; margin: 12px 0; text-align: center; font-size: 13px; line-height: 1.7; color: var(--muted-strong); }
+.cost-plan-sum-label { font-size: 13px; font-weight: 600; color: var(--accent-strong); }
+.cost-plan-sum-value { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.cost-plan-sum-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.cost-plan-sum-list li { display: flex; justify-content: space-between; gap: 8px; }
+.cost-plan-sum-list li > span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.cost-plan-sum-list small { margin-left: 6px; font-size: 11px; color: var(--muted); }
+.cost-plan-sum-bar { height: 10px; background: var(--card); border-radius: 5px; overflow: hidden; margin-top: 4px; }
+.cost-plan-sum-bar span { display: block; height: 100%; background: var(--success); border-radius: 5px; }
+.cost-plan-sum-bar span.is-short { background: var(--warning); }
+.cost-plan-sum-row { display: flex; justify-content: space-between; font-size: 13px; }
+.cost-plan-sum-row b { font-variant-numeric: tabular-nums; }
+.cost-plan-sum-gap { padding: 8px 10px; border-radius: var(--radius); font-size: 16px; font-weight: 750; text-align: center; font-variant-numeric: tabular-nums; }
+.cost-plan-sum-gap.is-ok { background: var(--success-soft); color: var(--success); }
+.cost-plan-sum-gap.is-short { background: var(--danger-soft); color: var(--danger); }
+.cost-plan-sum-note { margin: 0; font-size: 12px; color: var(--muted-strong); }
+.cost-plan-sum-note .is-warn { color: var(--warning); font-weight: 600; }
+
+/* 월별 자금 흐름 */
+.cost-flow-wrap { max-height: 360px; overflow-y: auto; }
+.cost-flow-table { min-width: 480px; }
+.cost-flow-table td { padding: 7px 12px; }
+.cost-flow-table tr.is-current td { background: var(--accent-soft); }
+.cost-flow-balance { font-weight: 700; }
+.cost-flow-table tr.is-short td { background: var(--danger-soft); }
+.cost-flow-table tr.is-short .cost-flow-balance { color: var(--danger); }
+
 /* 설정 모달 */
 .modal.cost-settings-modal { max-width: 560px; }
 .cost-settings-modal .modal-body { max-height: 70vh; overflow-y: auto; }
@@ -303,7 +501,10 @@ button.cost-alert:hover { border-color: var(--border-strong); background: var(--
   .cost-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
+  .cost-plan-summary { grid-template-columns: 1fr; }
   .cost-grid { grid-template-columns: 1fr; }
+  .cost-plan-add,
+  .cost-fund-form { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 600px) {
   .cost-kpis { grid-template-columns: 1fr 1fr; }
@@ -311,7 +512,9 @@ button.cost-alert:hover { border-color: var(--border-strong); background: var(--
   .cost-kpi-value { font-size: 18px; }
   .cost-form-row,
   .cost-budget-grid { grid-template-columns: 1fr; }
-  .cost-rec-form { grid-template-columns: 1fr 1fr; }
+  .cost-rec-form,
+  .cost-plan-add,
+  .cost-fund-form { grid-template-columns: 1fr 1fr; }
 }
 
 /* ========== 관리자 (admin/admin.html) ========== */
@@ -459,6 +662,27 @@ button.cost-alert:hover { border-color: var(--border-strong); background: var(--
   font-weight: 500;
   color: var(--muted);
 }
+.admin-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 420px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.admin-order-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.admin-order-list li:last-child { border-bottom: none; }
+.admin-order-no { width: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.admin-order-label { flex: 1; font-weight: 600; }
+.admin-order-btn { padding: 2px 8px; font-size: 11px; line-height: 1.6; }
+.admin-order-btn:disabled { opacity: 0.4; cursor: default; }
 .admin-status {
   padding: 3px 10px;
   border: 1px solid var(--border);

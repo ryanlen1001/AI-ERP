@@ -16,6 +16,7 @@
   var CURRENT_KEY = PREFIX + "current-member";
   var PERMS_KEY = PREFIX + "menu-permissions";
   var LOG_KEY = PREFIX + "admin-log";
+  var ORDER_KEY = PREFIX + "menu-order";
   var LEGACY_PROFILE_KEY = PREFIX + "profile";
 
   // level이 높을수록 상위 등급
@@ -38,6 +39,8 @@
   ];
   // 관리자 페이지는 고정: 마스터·관리자만
   var ADMIN_PAGE_ROLES = ["master", "admin"];
+  // 사이드바 '업무' 그룹의 기본 순서 (관리자 페이지에서 변경)
+  var WORK_MENU_ORDER = ["sales", "cost", "receipt"];
 
   function readJSON(key, fallback) {
     try {
@@ -160,6 +163,18 @@
   function savePermissions(perms) {
     writeJSON(PERMS_KEY, perms);
   }
+  // 저장된 순서에 없는 메뉴는 기본 순서대로 뒤에 붙이고, 사라진 메뉴는 제외
+  function getMenuOrder() {
+    var saved = readJSON(ORDER_KEY, null);
+    var order = Array.isArray(saved) ? saved.filter(function (id) { return WORK_MENU_ORDER.indexOf(id) !== -1; }) : [];
+    WORK_MENU_ORDER.forEach(function (id) {
+      if (order.indexOf(id) === -1) order.push(id);
+    });
+    return order;
+  }
+  function saveMenuOrder(order) {
+    writeJSON(ORDER_KEY, order);
+  }
   function canAccess(menuId, member) {
     var m = member || getCurrent();
     if (!m) return false;
@@ -264,6 +279,8 @@
     roleLabel: roleLabel,
     getPermissions: getPermissions,
     savePermissions: savePermissions,
+    getMenuOrder: getMenuOrder,
+    saveMenuOrder: saveMenuOrder,
     canAccess: canAccess,
     log: log,
     getLog: getLog,

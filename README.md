@@ -16,6 +16,17 @@
 
 데이터는 브라우저 localStorage(`ai-groupware-*` 키)에만 저장됩니다. 계정관리 → 전체 백업으로 주기적으로 백업하세요.
 
+## 여러 기기에서 함께 쓰기 (공유 서버)
+
+`server.py`로 실행하면 데이터가 서버의 `data/groupware.db`(SQLite)에 저장되고, 접속한 모든 기기가 같은 데이터를 봅니다(`sync.js`가 localStorage와 서버를 동기화). 현재 로그인한 회원만 기기마다 따로 기억합니다.
+
+- 실행: `python3 server.py` (기본 포트 8765, `GW_PORT`로 변경)
+- 비밀번호: `data/password` 파일에 한 줄로 적거나 `GW_PASSWORD` 환경변수 사용 (접속 시 아이디는 아무거나, 비밀번호만 확인)
+- 자동 실행: `deploy/ai-groupware.service`를 `/etc/systemd/system/`에 복사 후 `sudo systemctl enable --now ai-groupware`
+- 백업: 하루 첫 저장 때 `data/backups/groupware-날짜.db`에 전날 상태가 보관됩니다(최근 90일은 매일, 그 이전은 달마다 하나씩 영구 보관).
+- 예전 `data/store.json`이 있으면 DB가 비어 있을 때 처음 한 번 자동으로 옮겨 담습니다(원본은 그대로 남습니다).
+- 같은 데이터를 두 사람이 동시에 고치면 나중에 저장한 쪽에 안내가 뜨고 최신 내용으로 다시 불러옵니다.
+
 권한 등급은 **마스터 > 관리자 > 일반** 3단계입니다.
 
 - **마스터**: 모든 메뉴 접근, 등급 지정, 메뉴별 접근 권한 설정, 백업 복원·전체 초기화

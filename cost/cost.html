@@ -14,7 +14,7 @@
                 <span class="page-head-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v12a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2Z"/><circle cx="16" cy="15" r="1.2"/></svg></span>
                 <div>
                     <h1 class="page-title">비용관리</h1>
-                    <p class="page-desc">사업 초기 자금, 지출, 런웨이와 증빙을 한곳에서 관리합니다.</p>
+                    <p class="page-desc">투자금이 얼마나 남았고 언제까지 버틸 수 있는지 한눈에 확인하고, 지출을 기록합니다.</p>
                 </div>
             </div>
             <div class="page-actions">
@@ -22,19 +22,20 @@
                 <button type="button" class="btn-secondary" id="cost-backup-btn">백업</button>
                 <button type="button" class="btn-secondary" id="cost-restore-btn">복원</button>
                 <input type="file" id="cost-restore-file" accept="application/json,.json" hidden>
-                <button type="button" class="btn-primary" id="cost-settings-btn">자금·예산 설정</button>
+                <button type="button" class="btn-secondary" id="cost-settings-btn">시작일·예산 설정</button>
+                <button type="button" class="btn-primary" id="cost-quick-add">+ 지출 입력</button>
             </div>
         </div>
 
             <!-- 핵심 지표 -->
             <section class="cost-kpis" aria-label="핵심 지표">
                 <div class="cost-kpi">
-                    <span class="cost-kpi-label">초기 자금</span>
+                    <span class="cost-kpi-label">총 투자금 (확보 자금)</span>
                     <span class="cost-kpi-value" id="kpi-capital">—</span>
                     <span class="cost-kpi-sub" id="kpi-capital-sub"></span>
                 </div>
                 <div class="cost-kpi">
-                    <span class="cost-kpi-label">누적 지출</span>
+                    <span class="cost-kpi-label">총 지출</span>
                     <span class="cost-kpi-value" id="kpi-spent">—</span>
                     <span class="cost-kpi-sub" id="kpi-spent-sub"></span>
                 </div>
@@ -44,9 +45,9 @@
                     <span class="cost-kpi-sub" id="kpi-remaining-sub"></span>
                 </div>
                 <div class="cost-kpi">
-                    <span class="cost-kpi-label">월평균 지출 (최근 3개월)</span>
-                    <span class="cost-kpi-value" id="kpi-burn">—</span>
-                    <span class="cost-kpi-sub" id="kpi-burn-sub"></span>
+                    <span class="cost-kpi-label">이번 달 지출</span>
+                    <span class="cost-kpi-value" id="kpi-month">—</span>
+                    <span class="cost-kpi-sub" id="kpi-month-sub"></span>
                 </div>
                 <div class="cost-kpi cost-kpi-hero">
                     <span class="cost-kpi-label">예상 런웨이</span>
@@ -58,7 +59,45 @@
             <!-- 확인 필요 알림 -->
             <section class="cost-alerts" id="cost-alerts" aria-label="확인 필요"></section>
 
+            <!-- 자금 현황 -->
+            <div class="cost-grid cost-overview">
+                <section class="cost-card" aria-labelledby="cost-usage-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-usage-title">투자금 사용 현황</h2>
+                        <span class="cost-card-meta" id="cost-usage-meta"></span>
+                    </div>
+                    <div id="cost-usage"></div>
+                </section>
+                <section class="cost-card" aria-labelledby="cost-outlook-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-outlook-title">잔액 전망</h2>
+                        <span class="cost-card-meta" id="cost-outlook-meta"></span>
+                    </div>
+                    <div class="cost-trend" id="cost-outlook"></div>
+                </section>
+            </div>
+
             <div class="cost-grid">
+                <!-- 월별 추이 -->
+                <section class="cost-card" aria-labelledby="cost-trend-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-trend-title">월별 지출 추이</h2>
+                        <span class="cost-card-meta">최근 6개월</span>
+                    </div>
+                    <div class="cost-trend" id="cost-trend"></div>
+                </section>
+
+                <!-- 이번 달 분류별 예산 -->
+                <section class="cost-card" aria-labelledby="cost-cat-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-cat-title">이번 달 분류별 지출</h2>
+                        <span class="cost-card-meta" id="cost-cat-meta"></span>
+                    </div>
+                    <ul class="cost-meters" id="cost-meters"></ul>
+                </section>
+            </div>
+
+            <div class="cost-grid" id="cost-entry">
                 <!-- 지출 입력 -->
                 <section class="cost-card" aria-labelledby="cost-form-title">
                     <div class="cost-card-head">
@@ -101,33 +140,21 @@
                                 <select id="f-evidence"></select>
                             </label>
                         </div>
-                        <label class="cost-field">
-                            <span>메모</span>
-                            <input type="text" id="f-memo" maxlength="100" placeholder="선택">
-                        </label>
+                        <div class="cost-form-row">
+                            <label class="cost-field">
+                                <span>성격</span>
+                                <select id="f-kind" title="일회성·보증금은 월평균 운영비와 런웨이 계산에서 빠집니다"></select>
+                            </label>
+                            <label class="cost-field">
+                                <span>메모</span>
+                                <input type="text" id="f-memo" maxlength="100" placeholder="선택">
+                            </label>
+                        </div>
                         <p class="cost-form-hint" id="f-hint"></p>
                         <div class="cost-form-actions">
                             <button type="submit" class="btn-primary" id="f-submit">추가</button>
                         </div>
                     </form>
-                </section>
-
-                <!-- 이번 달 분류별 예산 -->
-                <section class="cost-card" aria-labelledby="cost-cat-title">
-                    <div class="cost-card-head">
-                        <h2 class="cost-card-title" id="cost-cat-title">이번 달 분류별 지출</h2>
-                        <span class="cost-card-meta" id="cost-cat-meta"></span>
-                    </div>
-                    <ul class="cost-meters" id="cost-meters"></ul>
-                </section>
-
-                <!-- 월별 추이 -->
-                <section class="cost-card" aria-labelledby="cost-trend-title">
-                    <div class="cost-card-head">
-                        <h2 class="cost-card-title" id="cost-trend-title">월별 지출 추이</h2>
-                        <span class="cost-card-meta">최근 6개월</span>
-                    </div>
-                    <div class="cost-trend" id="cost-trend"></div>
                 </section>
 
                 <!-- 정기 지출 -->
@@ -142,9 +169,13 @@
                         <input type="text" id="r-amount" inputmode="numeric" placeholder="월 금액" aria-label="월 금액" required>
                         <input type="number" id="r-day" min="1" max="31" value="1" aria-label="매월 결제일" title="매월 결제일">
                         <select id="r-category" aria-label="분류"></select>
+                        <select id="r-method" aria-label="결제수단"></select>
                         <button type="submit" class="btn-secondary">등록</button>
                     </form>
-                    <button type="button" class="btn-primary cost-rec-apply" id="cost-rec-apply">이번 달 고정비 반영</button>
+                    <div class="cost-rec-apply-row">
+                        <input type="month" id="rec-month" aria-label="고정비를 반영할 월">
+                        <button type="button" class="btn-primary cost-rec-apply" id="cost-rec-apply">고정비 반영</button>
+                    </div>
                 </section>
             </div>
 
@@ -185,19 +216,107 @@
                     </table>
                 </div>
             </section>
+
+            <div class="cost-grid">
+                <!-- 자금 출처 -->
+                <section class="cost-card" aria-labelledby="cost-fund-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-fund-title">자금 출처</h2>
+                        <span class="cost-card-meta" id="cost-fund-meta"></span>
+                    </div>
+                    <ul class="cost-rec-list" id="fund-list"></ul>
+                    <form class="cost-rec-form cost-fund-form" id="fund-form" autocomplete="off">
+                        <select id="fd-type" aria-label="자금 종류"></select>
+                        <input type="text" id="fd-name" maxlength="40" placeholder="내용 (예: 창업자 출자)" aria-label="자금 내용">
+                        <input type="text" id="fd-amount" inputmode="numeric" placeholder="금액" aria-label="금액" required>
+                        <input type="date" id="fd-date" aria-label="입금(예정)일" title="입금일 또는 입금 예정일">
+                        <button type="submit" class="btn-secondary">추가</button>
+                    </form>
+                        <p class="admin-help cost-help">대출 상환액은 아래 산정표에 '매월' 항목으로 넣으면 운영비에 반영됩니다. 입금 예정일을 넣으면 월별 자금 흐름에 그 달 유입으로 잡힙니다.</p>
+                </section>
+
+                <!-- 월별 자금 흐름 -->
+                <section class="cost-card" aria-labelledby="cost-flow-title">
+                    <div class="cost-card-head">
+                        <h2 class="cost-card-title" id="cost-flow-title">월별 자금 흐름</h2>
+                        <span class="cost-card-meta" id="cost-flow-meta"></span>
+                    </div>
+                    <div class="cost-table-wrap cost-flow-wrap">
+                        <table class="cost-table cost-flow-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">월</th>
+                                    <th scope="col" class="num">유입</th>
+                                    <th scope="col" class="num">계획 지출</th>
+                                    <th scope="col" class="num">실제 지출</th>
+                                    <th scope="col" class="num">월말 잔액</th>
+                                </tr>
+                            </thead>
+                            <tbody id="flow-tbody"></tbody>
+                        </table>
+                    </div>
+                    <p class="admin-help cost-help">잔액은 지난달까지 실제 지출, 이번 달은 계획과 실제 중 큰 금액, 다음 달부터는 계획 지출로 계산합니다.</p>
+                </section>
+            </div>
+
+
+            <!-- 초기 투자비 산정 -->
+            <section class="cost-card cost-plan" id="cost-plan" aria-labelledby="cost-plan-title">
+                <div class="cost-card-head">
+                    <div>
+                        <h2 class="cost-card-title" id="cost-plan-title">초기 투자비 산정</h2>
+                        <p class="cost-card-desc">앞으로 쓸 비용을 적으면 필요한 자금이 계산됩니다. 실제로 쓰면 <b>집행</b>을 눌러 지출 내역에 기록하세요.</p>
+                    </div>
+                    <button type="button" class="btn-secondary" id="plan-template">자주 쓰는 항목 불러오기</button>
+                </div>
+                <div class="cost-plan-layout">
+                    <div class="cost-plan-main">
+                        <div class="cost-plan-params">
+                            <label>운영 기간 <input type="number" id="p-months" min="1" max="36" inputmode="numeric"> 개월</label>
+                            <label>예비비 <input type="number" id="p-reserve" min="0" max="50" inputmode="numeric"> %</label>
+                            <label title="인건비(매월) 항목에 회사 부담 4대보험료를 더해 계산합니다">인건비 4대보험 회사부담 <input type="number" id="p-insurance" min="0" max="30" inputmode="numeric"> %</label>
+                            <span class="cost-plan-start" id="p-start-note"></span>
+                        </div>
+                        <div class="cost-table-wrap">
+                            <table class="cost-table cost-plan-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">항목</th>
+                                        <th scope="col">분류</th>
+                                        <th scope="col">유형</th>
+                                        <th scope="col">시점</th>
+                                        <th scope="col" class="num">금액</th>
+                                        <th scope="col" class="num">산정액</th>
+                                        <th scope="col">집행</th>
+                                        <th scope="col"><span class="sr-only">삭제</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="plan-tbody"></tbody>
+                            </table>
+                        </div>
+                        <form class="cost-plan-add" id="plan-add-form" autocomplete="off">
+                            <input type="text" id="pa-name" maxlength="40" placeholder="항목 (예: 노트북 2대)" aria-label="계획 항목" required>
+                            <select id="pa-category" aria-label="분류"></select>
+                            <select id="pa-type" aria-label="유형"></select>
+                            <input type="text" id="pa-amount" inputmode="numeric" placeholder="금액" aria-label="금액">
+                            <button type="submit" class="btn-secondary">항목 추가</button>
+                        </form>
+                    </div>
+                    <aside class="cost-plan-summary" id="plan-summary" aria-label="필요 자금 계산 결과"></aside>
+                </div>
+            </section>
     </div>
 
     <!-- 자금·예산 설정 -->
     <div class="modal-overlay" id="modal-cost-settings" hidden>
         <div class="modal cost-settings-modal" role="dialog" aria-modal="true" aria-labelledby="cost-settings-title">
             <div class="modal-header">
-                <h3 id="cost-settings-title">자금·예산 설정</h3>
+                <h3 id="cost-settings-title">시작일·예산 설정</h3>
                 <button type="button" class="modal-close" id="cost-settings-close" aria-label="닫기">&times;</button>
             </div>
             <div class="modal-body">
-                <label class="modal-label" for="s-capital">초기 자금 (자본금 + 투자·대출 등 사용 가능한 총액, 원)</label>
-                <input type="text" class="modal-input" id="s-capital" inputmode="numeric" placeholder="예: 50,000,000">
-                <label class="modal-label" for="s-start">사업 시작일</label>
+                <p class="modal-desc">확보한 자금(자본금·투자·대출 등)은 화면의 <b>자금 출처</b>에서 관리합니다.</p>
+                <label class="modal-label" for="s-start">사업 시작일 (초기 투자비 산정의 1개월 차 기준)</label>
                 <input type="date" class="modal-input" id="s-start">
                 <label class="modal-label">분류별 월 예산 (비워두면 예산 없음)</label>
                 <div class="cost-budget-grid" id="s-budgets"></div>
@@ -215,6 +334,7 @@
     </div>
     <div class="chart-tooltip" id="cost-tooltip" hidden></div>
 
+    <script src="../sync.js"></script>
     <script src="../members.js"></script>
     <script src="../shell.js"></script>
     <script>
@@ -226,6 +346,7 @@
             { id: "payroll", label: "인건비" },
             { id: "rent", label: "임차료·관리비" },
             { id: "equipment", label: "장비·비품" },
+            { id: "facility", label: "시설·인테리어" },
             { id: "software", label: "소프트웨어·구독" },
             { id: "marketing", label: "마케팅·광고" },
             { id: "outsourcing", label: "외주·용역" },
@@ -249,6 +370,41 @@
             { id: "cash_receipt", label: "현금영수증(지출증빙)", qualified: true },
             { id: "simple", label: "간이영수증", qualified: false },
             { id: "none", label: "미수취", qualified: false }
+        ];
+        // 일회성·보증금은 월평균 운영비(런웨이)에서 제외
+        var KINDS = [
+            { id: "op", label: "운영비 (매달 나가는 성격)" },
+            { id: "once", label: "일회성 투자" },
+            { id: "deposit", label: "보증금 (회수 가능)" }
+        ];
+        var KIND_SHORT = { op: "운영비", once: "일회성", deposit: "보증금" };
+        var PLAN_TYPES = [
+            { id: "once", label: "일회성" },
+            { id: "monthly", label: "매월" },
+            { id: "deposit", label: "보증금" }
+        ];
+        var FUND_TYPES = [
+            { id: "capital", label: "자본금" },
+            { id: "owner", label: "대표 추가 투입" },
+            { id: "investment", label: "투자 유치" },
+            { id: "loan", label: "대출" },
+            { id: "grant", label: "정부지원금" },
+            { id: "etc", label: "기타" }
+        ];
+        var ONCE_CATEGORIES = ["equipment", "facility"];
+        var PLAN_TEMPLATE = [
+            { name: "법인 설립 등기·등록면허세", category: "professional", type: "once" },
+            { name: "사무실 임차 보증금", category: "rent", type: "deposit" },
+            { name: "인테리어·간판", category: "facility", type: "once" },
+            { name: "노트북·PC", category: "equipment", type: "once" },
+            { name: "사무 가구·비품", category: "equipment", type: "once" },
+            { name: "홈페이지·브랜딩 제작", category: "marketing", type: "once" },
+            { name: "사무실 월세·관리비", category: "rent", type: "monthly" },
+            { name: "대표·직원 급여", category: "payroll", type: "monthly" },
+            { name: "세무 기장료", category: "professional", type: "monthly" },
+            { name: "소프트웨어 구독", category: "software", type: "monthly" },
+            { name: "통신비", category: "utility", type: "monthly" },
+            { name: "광고·마케팅", category: "marketing", type: "monthly" }
         ];
 
         function labelOf(list, id) {
@@ -295,25 +451,48 @@
 
         // ---------- 저장소 ----------
         function emptyState() {
-            return { settings: { capital: 0, startDate: "", budgets: {} }, expenses: [], recurring: [] };
+            return {
+                settings: { capital: 0, startDate: "", budgets: {} },
+                expenses: [],
+                recurring: [],
+                funding: [],
+                plan: { months: 12, reservePct: 10, insurancePct: 10, items: [] }
+            };
+        }
+        function normalize(data) {
+            var base = emptyState();
+            var settings = Object.assign(base.settings, data.settings || {});
+            var funding = Array.isArray(data.funding) ? data.funding : [];
+            // 이전 버전의 '초기 자금' 한 줄 → 자금 출처 1건으로 이전
+            if (!Array.isArray(data.funding) && settings.capital > 0) {
+                funding = [{ id: uid("fund"), type: "capital", name: "초기 자금", amount: settings.capital, date: settings.startDate || "" }];
+            }
+            var expenses = Array.isArray(data.expenses) ? data.expenses : [];
+            // 이전 버전 지출에는 성격이 없음: 장비·시설은 일회성, 나머지는 운영비로 간주
+            expenses.forEach(function (e) {
+                if (!e.kind) e.kind = ONCE_CATEGORIES.indexOf(e.category) !== -1 ? "once" : "op";
+            });
+            return {
+                settings: settings,
+                expenses: expenses,
+                recurring: Array.isArray(data.recurring) ? data.recurring : [],
+                funding: funding,
+                plan: Object.assign(base.plan, data.plan || {}, { items: data.plan && Array.isArray(data.plan.items) ? data.plan.items : [] })
+            };
         }
         function load() {
             try {
                 var raw = localStorage.getItem(STORE_KEY);
-                if (!raw) return emptyState();
-                var data = JSON.parse(raw);
-                var base = emptyState();
-                return {
-                    settings: Object.assign(base.settings, data.settings || {}),
-                    expenses: Array.isArray(data.expenses) ? data.expenses : [],
-                    recurring: Array.isArray(data.recurring) ? data.recurring : []
-                };
+                return raw ? normalize(JSON.parse(raw)) : emptyState();
             } catch (e) {
                 return emptyState();
             }
         }
         var state = load();
+        if (localStorage.getItem(STORE_KEY)) save();
         function save() {
+            // 홈 화면 등은 settings.capital을 읽으므로 자금 출처 합계와 맞춘다
+            state.settings.capital = fundingTotal();
             try {
                 localStorage.setItem(STORE_KEY, JSON.stringify(state));
             } catch (e) {
@@ -332,10 +511,20 @@
             return !!(ev && ev.qualified);
         }
         function vatEstimate(e) {
-            return isQualified(e) && e.category !== "entertainment" ? Math.round(e.amount / 11) : 0;
+            return isQualified(e) && e.category !== "entertainment" && e.kind !== "deposit" ? Math.round(e.amount / 11) : 0;
+        }
+        function kindOf(e) { return e.kind || "op"; }
+        function isOperating(e) { return kindOf(e) === "op"; }
+        // 보증금은 돌려받는 돈이라 분류별 비용·예산 비교에서 제외
+        function isExpense(e) { return kindOf(e) !== "deposit"; }
+        function fundingTotal() { return sum(state.funding); }
+        // 입금일이 없거나 오늘 이전인 자금 = 지금 쓸 수 있는 돈
+        function fundingReceived() {
+            var t = todayIso();
+            return sum(state.funding.filter(function (f) { return !f.date || f.date <= t; }));
         }
         function burnRate() {
-            // 최근 3개월(이번 달 포함) 평균. 사업 시작이 더 최근이면 경과 개월 수로 나눔
+            // 최근 3개월(이번 달 포함) 운영비 평균. 사업 시작이 더 최근이면 경과 개월 수로 나눔
             if (!state.expenses.length) return { value: 0, months: 0 };
             var cm = currentMonth();
             var first = state.expenses.reduce(function (m, e) { return monthKey(e.date) < m ? monthKey(e.date) : m; }, cm);
@@ -346,8 +535,51 @@
                 if (ym < first) break;
                 months.push(ym);
             }
-            var total = months.reduce(function (a, ym) { return a + sum(expensesOfMonth(ym)); }, 0);
+            var total = months.reduce(function (a, ym) { return a + sum(expensesOfMonth(ym).filter(isOperating)); }, 0);
             return { value: months.length ? total / months.length : 0, months: months.length };
+        }
+
+        // ---------- 초기 투자비 산정 ----------
+        // 계획 항목의 시점은 '1개월 차'부터의 offset(0부터)으로 저장해 시작일이 바뀌어도 함께 이동
+        function planStartMonth() {
+            if (state.settings.startDate) return monthKey(state.settings.startDate);
+            return currentMonth();
+        }
+        function planMonths() {
+            return Math.min(36, Math.max(1, parseInt(state.plan.months, 10) || 12));
+        }
+        function itemMonthly(item) {
+            var base = item.amount || 0;
+            if (item.category === "payroll") base = base * (1 + (state.plan.insurancePct || 0) / 100);
+            return base;
+        }
+        // 운영 기간 안에서 이 항목이 차지하는 금액
+        function itemTotal(item) {
+            if (item.type !== "monthly") return item.amount || 0;
+            var active = Math.max(0, planMonths() - (item.offset || 0));
+            return itemMonthly(item) * active;
+        }
+        function plannedOutOfMonth(i) {
+            return state.plan.items.reduce(function (a, item) {
+                var off = item.offset || 0;
+                if (item.type === "monthly") return a + (i >= off ? itemMonthly(item) : 0);
+                return a + (i === off ? item.amount || 0 : 0);
+            }, 0);
+        }
+        function planSummary() {
+            var items = state.plan.items;
+            var byType = function (t) { return items.filter(function (x) { return x.type === t; }).reduce(function (a, x) { return a + itemTotal(x); }, 0); };
+            var once = byType("once"), deposit = byType("deposit"), operating = byType("monthly");
+            var reserve = Math.round((once + operating) * (state.plan.reservePct || 0) / 100);
+            var required = Math.round(once + deposit + operating + reserve);
+            var monthlyFull = items.filter(function (x) { return x.type === "monthly"; }).reduce(function (a, x) { return a + itemMonthly(x); }, 0);
+            return { once: once, deposit: deposit, operating: operating, reserve: reserve, required: required, monthly: monthlyFull, secured: fundingTotal() };
+        }
+        function executedOf(item) {
+            if (item.type === "monthly") return sum(state.expenses.filter(function (e) {
+                return item.recurringId && e.recurringId === item.recurringId;
+            }));
+            return sum(state.expenses.filter(function (e) { return e.planId === item.id; }));
         }
         function recurringTotal() {
             return state.recurring.reduce(function (a, r) { return a + (r.amount || 0); }, 0);
@@ -371,6 +603,7 @@
         var fMethod = document.getElementById("f-method");
         var fEvidence = document.getElementById("f-evidence");
         var fMemo = document.getElementById("f-memo");
+        var fKind = document.getElementById("f-kind");
         var fHint = document.getElementById("f-hint");
         var fSubmit = document.getElementById("f-submit");
         var fCancel = document.getElementById("cost-form-cancel");
@@ -378,29 +611,51 @@
         fillOptions(fCategory, CATEGORIES);
         fillOptions(fMethod, METHODS);
         fillOptions(fEvidence, EVIDENCES);
+        fillOptions(fKind, KINDS);
         fillOptions(document.getElementById("r-category"), CATEGORIES);
+        fillOptions(document.getElementById("r-method"), METHODS);
+        fillOptions(document.getElementById("pa-category"), CATEGORIES);
+        fillOptions(document.getElementById("pa-type"), PLAN_TYPES);
+        fillOptions(document.getElementById("fd-type"), FUND_TYPES);
         fillOptions(document.getElementById("flt-category"), CATEGORIES, "전체 분류");
         fDate.value = todayIso();
         fEvidence.value = "card";
+        fCategory.value = "equipment";
+        fKind.value = "once";
         document.getElementById("r-category").value = "rent";
+        document.getElementById("pa-category").value = "equipment";
+        document.getElementById("rec-month").value = currentMonth();
         bindAmountFormat(fAmount);
         bindAmountFormat(document.getElementById("r-amount"));
+        bindAmountFormat(document.getElementById("pa-amount"));
+        bindAmountFormat(document.getElementById("fd-amount"));
+
+        // 장비·시설은 일회성 투자로 제안 (보증금으로 고른 경우는 유지)
+        fCategory.addEventListener("change", function () {
+            if (fKind.value === "deposit") return;
+            fKind.value = ONCE_CATEGORIES.indexOf(fCategory.value) !== -1 ? "once" : "op";
+        });
+        fKind.addEventListener("change", updateFormHint);
+        function evidenceFor(method) {
+            return method === "corp_account" ? "tax_invoice" : method === "cash" ? "cash_receipt" : "card";
+        }
 
         // 결제수단에 맞춰 증빙 기본값 제안
         fMethod.addEventListener("change", function () {
-            if (fMethod.value === "corp_card") fEvidence.value = "card";
-            else if (fMethod.value === "corp_account") fEvidence.value = "tax_invoice";
+            if (fMethod.value !== "personal") fEvidence.value = evidenceFor(fMethod.value);
             updateFormHint();
         });
         fEvidence.addEventListener("change", updateFormHint);
         fCategory.addEventListener("change", updateFormHint);
         fAmount.addEventListener("input", updateFormHint);
         function updateFormHint() {
-            var draft = { amount: parseAmount(fAmount.value), evidence: fEvidence.value, category: fCategory.value };
+            var draft = { amount: parseAmount(fAmount.value), evidence: fEvidence.value, category: fCategory.value, kind: fKind.value };
             var msgs = [];
             if (fEvidence.value === "none") msgs.push("증빙 미수취 건은 비용 인정이 어려울 수 있어요. 나중에 꼭 챙기세요.");
             else if (fEvidence.value === "simple" && draft.amount > 30000) msgs.push("3만원 초과 간이영수증은 증빙불비 가산세(2%) 대상일 수 있어요.");
             if (fMethod.value === "personal") msgs.push("대표 개인결제는 '미정산'으로 표시되어 정산할 때까지 추적됩니다.");
+            if (fKind.value === "deposit") msgs.push("보증금은 비용이 아니라 돌려받을 돈이라 런웨이 계산에서 빠집니다.");
+            if (planLink) msgs.push("산정표의 '" + planLink.name + "' 항목 집행으로 기록됩니다.");
             var vat = vatEstimate(draft);
             if (vat) msgs.push("공제 예상 부가세 약 " + won(vat));
             fHint.textContent = msgs.join(" · ");
@@ -408,6 +663,7 @@
 
         // ---------- 지출 추가/수정 ----------
         var editingId = null;
+        var planLink = null;
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             var amount = parseAmount(fAmount.value);
@@ -422,6 +678,7 @@
                 vendor: fVendor.value.trim(),
                 method: fMethod.value,
                 evidence: fEvidence.value,
+                kind: fKind.value,
                 memo: fMemo.value.trim()
             };
             if (editingId) {
@@ -436,15 +693,21 @@
                 data.id = uid("exp");
                 data.settled = false;
                 data.createdAt = Date.now();
+                if (planLink) data.planId = planLink.id;
                 state.expenses.push(data);
-                showToast(data.item + " " + won(amount) + " 추가됨");
-                // 연속 입력을 위해 날짜·분류·결제수단은 유지
-                fAmount.value = "";
-                fItem.value = "";
-                fVendor.value = "";
-                fMemo.value = "";
-                fItem.focus();
-                updateFormHint();
+                showToast(data.item + " " + won(amount) + " 추가됨" + (planLink ? " · 산정표 집행 반영" : ""));
+                if (planLink) {
+                    resetForm();
+                    document.getElementById("cost-plan").scrollIntoView({ behavior: "smooth", block: "start" });
+                } else {
+                    // 연속 입력을 위해 날짜·분류·결제수단은 유지
+                    fAmount.value = "";
+                    fItem.value = "";
+                    fVendor.value = "";
+                    fMemo.value = "";
+                    fItem.focus();
+                    updateFormHint();
+                }
             }
             save();
             render();
@@ -461,7 +724,9 @@
             fVendor.value = e.vendor || "";
             fMethod.value = e.method;
             fEvidence.value = e.evidence;
+            fKind.value = kindOf(e);
             fMemo.value = e.memo || "";
+            planLink = null;
             fSubmit.textContent = "수정 저장";
             fCancel.hidden = false;
             document.getElementById("cost-form-title").textContent = "지출 수정";
@@ -471,6 +736,7 @@
         }
         function resetForm() {
             editingId = null;
+            planLink = null;
             fAmount.value = "";
             fItem.value = "";
             fVendor.value = "";
@@ -496,10 +762,33 @@
             });
         }
 
+        // 산정표 항목 '집행' → 지출 입력 폼을 채워서 열기
+        function startExecute(item) {
+            resetForm();
+            planLink = item;
+            fDate.value = todayIso();
+            var remaining = (item.amount || 0) - executedOf(item);
+            fAmount.value = remaining > 0 ? remaining.toLocaleString("ko-KR") : "";
+            fItem.value = item.name;
+            fCategory.value = item.category;
+            fKind.value = item.type === "deposit" ? "deposit" : "once";
+            fSubmit.textContent = "집행 기록";
+            fCancel.hidden = false;
+            document.getElementById("cost-form-title").textContent = "집행 기록 · " + item.name;
+            updateFormHint();
+            form.scrollIntoView({ behavior: "smooth", block: "start" });
+            fAmount.focus();
+        }
+
         // ---------- 렌더링 ----------
         function render() {
             renderKpis();
             renderAlerts();
+            renderUsage();
+            renderOutlook();
+            renderPlan();
+            renderFunding();
+            renderFlow();
             renderMeters();
             renderTrend();
             renderRecurring();
@@ -516,34 +805,61 @@
         }
 
         function renderKpis() {
-            var capital = state.settings.capital || 0;
+            var capital = fundingTotal();
+            var received = fundingReceived();
+            var expected = capital - received;
             var spent = sum(state.expenses);
             var remaining = capital - spent;
+            var cash = received - spent;
             var burn = burnRate();
+            var plan = planSummary();
             var thisMonth = sum(expensesOfMonth(currentMonth()));
+            var lastMonth = sum(expensesOfMonth(shiftMonth(currentMonth(), -1)));
             var hasCapital = capital > 0;
+            var capitalSub = "아래 '자금 출처'에서 입력";
+            if (hasCapital) {
+                if (expected) capitalSub = "입금 " + wonShort(received) + " · 입금 예정 " + wonShort(expected);
+                else if (plan.required) capitalSub = "필요 자금 " + wonShort(plan.required) + " · " + (capital >= plan.required ? wonShort(capital - plan.required) + " 여유" : wonShort(plan.required - capital) + " 부족");
+                else capitalSub = state.funding.length + "건 모두 입금";
+            }
 
-            setKpi("kpi-capital", hasCapital ? wonShort(capital) : "미설정", hasCapital ? (state.settings.startDate ? state.settings.startDate + " 시작" : "") : "상단 '자금·예산 설정'에서 입력", won(capital));
-            setKpi("kpi-spent", wonShort(spent), hasCapital ? "자금의 " + Math.round(spent / capital * 100) + "% 사용" : state.expenses.length + "건", won(spent));
-            setKpi("kpi-remaining", hasCapital ? wonShort(remaining) : "—", hasCapital ? "이번 달 " + wonShort(thisMonth) + " 지출" : "", won(remaining));
-            setKpi("kpi-burn", wonShort(burn.value), burn.months ? burn.months + "개월 평균 · 고정비 " + wonShort(recurringTotal()) : "지출 내역 없음", won(burn.value));
+            setKpi("kpi-capital", hasCapital ? wonShort(capital) : "미설정", capitalSub, won(capital));
+            setKpi("kpi-spent", wonShort(spent), (hasCapital ? "투자금의 " + Math.round(spent / capital * 100) + "% 사용 · " : "") + state.expenses.length + "건", won(spent));
+            setKpi("kpi-remaining", hasCapital ? wonShort(cash) : "—",
+                hasCapital ? (expected ? "지금 쓸 수 있는 돈 · 예정 " + wonShort(expected) + " 별도" : "투자금의 " + Math.max(0, Math.round(cash / capital * 100)) + "% 남음") : "",
+                won(cash));
+            document.getElementById("kpi-remaining").classList.toggle("is-short", hasCapital && cash < 0);
+            var monthSub = lastMonth
+                ? "지난달 " + wonShort(lastMonth) + " 대비 " + (thisMonth >= lastMonth ? "▲ " : "▼ ") + Math.abs(Math.round((thisMonth - lastMonth) / lastMonth * 100)) + "%"
+                : "지난달 지출 없음";
+            setKpi("kpi-month", wonShort(thisMonth), monthSub, won(thisMonth));
 
             var runwayEl = document.getElementById("kpi-runway");
             var hero = runwayEl.closest(".cost-kpi");
             hero.classList.remove("is-good", "is-warn", "is-danger");
+            // 실제 운영비가 없으면 산정표의 월 운영비로 계산 (아직 집행 안 한 일회성·보증금은 남은 자금에서 미리 뺌)
+            var rate = burn.value, basis = "현재 속도면";
+            var pool = remaining;
+            if (!rate && plan.monthly) {
+                rate = plan.monthly;
+                basis = "계획 기준";
+                pool = remaining - state.plan.items.filter(function (x) { return x.type !== "monthly"; })
+                    .reduce(function (a, x) { return a + Math.max(0, (x.amount || 0) - executedOf(x)); }, 0);
+            }
             if (!hasCapital) {
-                setKpi("kpi-runway", "—", "초기 자금을 설정하면 계산됩니다");
-            } else if (remaining <= 0) {
-                setKpi("kpi-runway", "소진", "자금을 모두 사용했습니다");
+                setKpi("kpi-runway", "—", "자금 출처를 입력하면 계산됩니다");
+            } else if (pool <= 0) {
+                setKpi("kpi-runway", basis === "계획 기준" ? "부족" : "소진", basis === "계획 기준" ? "일회성·보증금만으로 자금을 넘습니다" : "자금을 모두 사용했습니다");
                 hero.classList.add("is-danger");
-            } else if (!burn.value) {
-                setKpi("kpi-runway", "—", "지출이 쌓이면 계산됩니다");
+            } else if (!rate) {
+                setKpi("kpi-runway", "—", "산정표에 월 운영비를 넣거나 지출이 쌓이면 계산됩니다");
             } else {
-                var months = remaining / burn.value;
+                var months = pool / rate;
                 var end = new Date();
                 end.setMonth(end.getMonth() + Math.floor(months));
                 setKpi("kpi-runway", months >= 99 ? "99+개월" : months.toFixed(1) + "개월",
-                    "현재 속도면 " + end.getFullYear() + "년 " + (end.getMonth() + 1) + "월경 소진");
+                    end.getFullYear() + "년 " + (end.getMonth() + 1) + "월경 소진 · " + (basis === "계획 기준" ? "계획" : "운영비") + " 월 " + wonShort(rate),
+                    basis === "계획 기준" ? "산정표의 월 운영비 기준" : "최근 3개월 운영비 평균 기준 (일회성·보증금 제외)");
                 hero.classList.add(months < 3 ? "is-danger" : months < 6 ? "is-warn" : "is-good");
             }
         }
@@ -558,14 +874,18 @@
             var cm = currentMonth();
             var over = CATEGORIES.filter(function (c) {
                 var b = state.settings.budgets[c.id];
-                return b && sum(expensesOfMonth(cm).filter(function (e) { return e.category === c.id; })) > b;
+                return b && sum(expensesOfMonth(cm).filter(function (e) { return e.category === c.id && isExpense(e); })) > b;
             });
             if (over.length) items.push({ tone: "danger", text: "이번 달 예산 초과: " + over.map(function (c) { return c.label; }).join(", ") });
             var pending = pendingRecurring(cm);
             if (pending.length) items.push({ tone: "info", text: "이번 달 미반영 고정비 " + pending.length + "건", action: "recurring" });
+            var plan = planSummary();
+            if (plan.required && plan.secured < plan.required) items.unshift({ tone: "danger", text: "필요 자금 대비 " + won(plan.required - plan.secured) + " 부족", action: "plan" });
+            var short = firstShortMonth();
+            if (short) items.unshift({ tone: "danger", text: short.slice(0, 4) + "년 " + monthLabel(short) + "에 잔액이 마이너스가 됩니다", action: "flow" });
 
-            if (!state.expenses.length && !state.settings.capital) {
-                el.innerHTML = '<div class="cost-onboard"><strong>시작하기</strong> ① 상단 <b>자금·예산 설정</b>에서 초기 자금 입력 → ② 아래에서 첫 지출 입력 → ③ 매달 나가는 구독·월세는 <b>정기 지출</b>에 등록하세요. 데이터는 이 브라우저에만 저장되니 주기적으로 <b>백업</b>하세요.</div>';
+            if (!state.expenses.length && !state.funding.length && !state.plan.items.length) {
+                el.innerHTML = '<div class="cost-onboard"><strong>시작하기</strong> ① 맨 아래 <b>초기 투자비 산정</b>에서 <b>자주 쓰는 항목 불러오기</b> 후 금액을 넣어 필요 자금 확인 → ② 그 위 <b>자금 출처</b>에 자본금·대출 등 확보한 돈 입력 → ③ 돈을 쓸 때마다 오른쪽 위 <b>+ 지출 입력</b>으로 기록하면 이 위쪽에 현황과 그래프가 채워집니다. 데이터는 이 브라우저에만 저장되니 주기적으로 <b>백업</b>하세요.</div>';
                 return;
             }
             el.innerHTML = items.map(function (it, i) {
@@ -582,6 +902,10 @@
                         document.getElementById("cost-rec-apply").scrollIntoView({ behavior: "smooth", block: "center" });
                         return;
                     }
+                    if (it.action === "plan" || it.action === "flow") {
+                        document.getElementById(it.action === "plan" ? "plan-summary" : "flow-tbody").scrollIntoView({ behavior: "smooth", block: "center" });
+                        return;
+                    }
                     fltMonth.value = "";
                     fltNoEvidence.checked = it.filter === "noevidence";
                     fltUnsettled.checked = it.filter === "unsettled";
@@ -593,7 +917,7 @@
 
         function renderMeters() {
             var cm = currentMonth();
-            var list = expensesOfMonth(cm);
+            var list = expensesOfMonth(cm).filter(isExpense);
             var total = sum(list);
             var budgets = state.settings.budgets;
             var budgetTotal = CATEGORIES.reduce(function (a, c) { return a + (budgets[c.id] || 0); }, 0);
@@ -645,7 +969,13 @@
             var cm = currentMonth();
             var months = [];
             for (var i = 5; i >= 0; i--) months.push(shiftMonth(cm, -i));
-            var values = months.map(function (ym) { return sum(expensesOfMonth(ym)); });
+            // 운영비와 일회성·보증금을 나눠 쌓아서, 큰 초기 투자가 있던 달을 구분해 보여준다
+            var parts = months.map(function (ym) {
+                var list = expensesOfMonth(ym);
+                var op = sum(list.filter(isOperating));
+                return { op: op, other: sum(list) - op, count: list.length };
+            });
+            var values = parts.map(function (p) { return p.op + p.other; });
             var max = Math.max.apply(null, values);
             var el = document.getElementById("cost-trend");
             if (!max) {
@@ -655,18 +985,23 @@
             var burn = burnRate().value;
             el.innerHTML =
                 '<div class="cost-bars" role="img" aria-label="최근 6개월 월별 지출">' +
-                (burn ? '<span class="cost-bars-avg" style="bottom:' + (burn / max * 100).toFixed(1) + '%"><span>평균 ' + wonShort(burn) + "</span></span>" : "") +
+                (burn ? '<span class="cost-bars-avg" style="bottom:' + (burn / max * 100).toFixed(1) + '%"><span>운영비 평균 ' + wonShort(burn) + "</span></span>" : "") +
                 months.map(function (ym, idx) {
-                    var v = values[idx];
+                    var v = values[idx], p = parts[idx];
                     var h = v ? Math.max(2, v / max * 100) : 0;
                     return '<div class="cost-bar-col" tabindex="0" data-idx="' + idx + '">' +
-                        (ym === cm && v ? '<span class="cost-bar-label">' + wonShort(v) + "</span>" : "") +
-                        '<span class="cost-bar' + (ym === cm ? " is-current" : "") + '" style="height:' + h.toFixed(1) + '%"></span></div>';
+                        (v ? '<span class="cost-bar-label">' + wonShort(v) + "</span>" : "") +
+                        '<span class="cost-bar-stack' + (ym === cm ? " is-current" : "") + '" style="height:' + h.toFixed(1) + '%">' +
+                        (p.other ? '<span class="is-other" style="flex-grow:' + p.other + '"></span>' : "") +
+                        (p.op ? '<span class="is-op" style="flex-grow:' + p.op + '"></span>' : "") +
+                        "</span></div>";
                 }).join("") + "</div>" +
-                '<div class="cost-bars-axis">' + months.map(function (ym) { return "<span>" + monthLabel(ym) + "</span>"; }).join("") + "</div>";
+                '<div class="cost-bars-axis">' + months.map(function (ym) { return "<span>" + monthLabel(ym) + "</span>"; }).join("") + "</div>" +
+                '<div class="cost-legend"><span><i class="is-op"></i>운영비</span><span><i class="is-other"></i>일회성·보증금</span></div>';
             el.querySelectorAll(".cost-bar-col").forEach(function (col) {
-                var idx = parseInt(col.dataset.idx, 10);
-                var html = "<strong>" + months[idx].replace("-", "년 ") + "월</strong><br>" + won(values[idx]) + " · " + expensesOfMonth(months[idx]).length + "건";
+                var idx = parseInt(col.dataset.idx, 10), p = parts[idx];
+                var html = "<strong>" + months[idx].slice(0, 4) + "년 " + monthLabel(months[idx]) + "</strong><br>합계 " + won(values[idx]) + " · " + p.count + "건" +
+                    "<br>운영비 " + won(p.op) + (p.other ? "<br>일회성·보증금 " + won(p.other) : "");
                 col.addEventListener("mouseenter", function () { showTip(col, html); });
                 col.addEventListener("focus", function () { showTip(col, html); });
                 col.addEventListener("mouseleave", hideTip);
@@ -674,14 +1009,111 @@
             });
         }
 
+        // 투자금이 어디에 쓰였고 얼마나 남았는지 (누적 막대 + 분류 TOP 3)
+        function renderUsage() {
+            var el = document.getElementById("cost-usage");
+            var capital = fundingTotal();
+            var byKind = function (k) { return sum(state.expenses.filter(function (e) { return kindOf(e) === k; })); };
+            var op = byKind("op"), once = byKind("once"), deposit = byKind("deposit");
+            var spent = op + once + deposit;
+            var remaining = capital - spent;
+            document.getElementById("cost-usage-meta").textContent = capital ? "총 투자금 " + won(capital) : "";
+            if (!capital && !spent) {
+                el.innerHTML = '<p class="cost-empty">아래 <b>자금 출처</b>에 자본금·대출 등을 넣으면<br>투자금이 어디에 쓰였는지 보여드립니다.</p>';
+                return;
+            }
+            var base = Math.max(capital, spent) || 1;
+            var segs = [
+                { label: "운영비", value: op, cls: "is-op" },
+                { label: "일회성 투자", value: once, cls: "is-once" },
+                { label: "보증금", value: deposit, cls: "is-deposit" },
+                { label: remaining < 0 ? "투자금 초과 지출" : capital > fundingReceived() ? "남은 자금 (입금 예정 포함)" : "남은 자금", value: Math.abs(remaining), cls: remaining >= 0 ? "is-left" : "is-over" }
+            ];
+            var pctOf = function (v) { return capital ? Math.round(v / capital * 100) + "%" : ""; };
+            var bar = segs.filter(function (s) { return s.value > 0 && s.cls !== "is-over"; }).map(function (s) {
+                return '<span class="' + s.cls + '" style="width:' + (s.value / base * 100).toFixed(2) + '%" title="' + escapeHtml(s.label + " " + won(s.value)) + '"></span>';
+            }).join("");
+            var legend = segs.filter(function (s) { return s.value > 0 || s.cls === "is-left"; }).map(function (s) {
+                return '<li class="' + s.cls + '"><i></i><span>' + escapeHtml(s.label) + "</span><b>" + won(s.value) + "</b><small>" + pctOf(s.value) + "</small></li>";
+            }).join("");
+
+            var cats = {};
+            state.expenses.filter(isExpense).forEach(function (e) { cats[e.category] = (cats[e.category] || 0) + e.amount; });
+            var top = Object.keys(cats).sort(function (a, b) { return cats[b] - cats[a]; }).slice(0, 3);
+            var plan = planSummary();
+            el.innerHTML =
+                '<div class="cost-usage-bar" role="img" aria-label="투자금 사용 비율">' + bar + "</div>" +
+                '<ul class="cost-usage-legend">' + legend + "</ul>" +
+                (top.length ? '<div class="cost-usage-top"><span>많이 쓴 분류</span>' + top.map(function (c, i) {
+                    return "<em>" + (i + 1) + ". " + escapeHtml(labelOf(CATEGORIES, c)) + " " + wonShort(cats[c]) + "</em>";
+                }).join("") + "</div>" : "") +
+                (plan.required
+                    ? '<button type="button" class="cost-usage-plan" data-go="cost-plan">산정한 필요 자금 ' + wonShort(plan.required) + " 중 " +
+                      Math.min(100, Math.round(capital / plan.required * 100)) + "% 확보" + (capital < plan.required ? " · " + wonShort(plan.required - capital) + " 더 필요" : "") + " →</button>"
+                    : '<button type="button" class="cost-usage-plan" data-go="cost-plan">필요한 총 투자비를 계산하려면 맨 아래 <b>초기 투자비 산정</b>을 이용하세요 →</button>');
+        }
+
+        // 월말 잔액 막대 그래프 (0원 기준선 아래는 빨간색)
+        function renderOutlook() {
+            var el = document.getElementById("cost-outlook");
+            var meta = document.getElementById("cost-outlook-meta");
+            if (!state.funding.length) {
+                meta.textContent = "";
+                el.innerHTML = '<p class="cost-empty">자금 출처를 입력하면 달마다 남는 돈을<br>그래프로 보여드립니다.</p>';
+                return;
+            }
+            var rows = computeFlow(), cm = currentMonth();
+            var vals = rows.map(function (r) { return r.balance; });
+            var maxPos = Math.max(0, Math.max.apply(null, vals));
+            var maxNeg = Math.max(0, -Math.min.apply(null, vals));
+            var range = maxPos + maxNeg || 1;
+            var zero = maxNeg / range * 100;
+            var short = rows.filter(function (r) { return r.balance < 0; })[0];
+            meta.textContent = short ? short.ym.slice(0, 4) + "년 " + monthLabel(short.ym) + " 자금 부족 예상" : rows.length + "개월 동안 자금 유지";
+            meta.classList.toggle("is-danger", !!short);
+            el.innerHTML =
+                '<div class="cost-bars cost-outlook-bars" style="grid-template-columns:repeat(' + rows.length + ',1fr)" role="img" aria-label="월말 잔액 전망">' +
+                (maxNeg ? '<span class="cost-outlook-zero" style="bottom:' + zero.toFixed(1) + '%"></span>' : "") +
+                rows.map(function (r, idx) {
+                    var h = Math.abs(r.balance) / range * 100;
+                    var bottom = r.balance >= 0 ? zero : zero - h;
+                    var cls = (r.balance < 0 ? " is-neg" : "") + (r.ym === cm ? " is-current" : r.ym < cm ? " is-past" : "");
+                    return '<div class="cost-bar-col" tabindex="0" data-idx="' + idx + '">' +
+                        '<span class="cost-outlook-bar' + cls + '" style="bottom:' + bottom.toFixed(1) + "%;height:" + Math.max(h, r.balance ? 1 : 0).toFixed(1) + '%"></span></div>';
+                }).join("") + "</div>" +
+                '<div class="cost-bars-axis" style="grid-template-columns:repeat(' + rows.length + ',1fr)">' + rows.map(function (r) {
+                    return "<span" + (r.ym === cm ? ' class="is-current"' : "") + ">" + (r.ym.slice(5) === "01" ? r.ym.slice(2, 4) + "." : "") + monthLabel(r.ym) + "</span>";
+                }).join("") + "</div>" +
+                '<div class="cost-legend"><span><i class="is-past"></i>지난 달 (실제)</span><span><i class="is-current"></i>이번 달</span><span><i class="is-future"></i>예상 (산정표 기준)</span></div>';
+            el.querySelectorAll(".cost-bar-col").forEach(function (col) {
+                var r = rows[parseInt(col.dataset.idx, 10)];
+                var html = "<strong>" + r.ym.slice(0, 4) + "년 " + monthLabel(r.ym) + " 말 잔액</strong><br>" + won(r.balance) +
+                    (r.inflow ? "<br>유입 " + won(r.inflow) : "") +
+                    "<br>" + (r.ym < cm ? "실제 지출 " + won(r.actual || 0) : "계획 지출 " + won(r.planned) + (r.actual ? " · 실제 " + won(r.actual) : ""));
+                col.addEventListener("mouseenter", function () { showTip(col, html); });
+                col.addEventListener("focus", function () { showTip(col, html); });
+                col.addEventListener("mouseleave", hideTip);
+                col.addEventListener("blur", hideTip);
+            });
+        }
+        document.getElementById("cost-usage").addEventListener("click", function (e) {
+            var btn = e.target.closest("[data-go]");
+            if (btn) document.getElementById(btn.dataset.go).scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        document.getElementById("cost-quick-add").addEventListener("click", function () {
+            document.getElementById("cost-entry").scrollIntoView({ behavior: "smooth", block: "start" });
+            fAmount.focus({ preventScroll: true });
+        });
+
         function renderRecurring() {
             var el = document.getElementById("cost-rec-list");
-            var cm = currentMonth();
+            var cm = recMonth.value || currentMonth();
             var pending = pendingRecurring(cm);
             document.getElementById("cost-rec-meta").textContent = state.recurring.length ? "월 " + won(recurringTotal()) : "";
             var applyBtn = document.getElementById("cost-rec-apply");
+            var mLabel = cm === currentMonth() ? "이번 달" : monthLabel(cm);
             applyBtn.disabled = !pending.length;
-            applyBtn.textContent = pending.length ? "이번 달 고정비 반영 (" + pending.length + "건)" : "이번 달 고정비 반영 완료";
+            applyBtn.textContent = pending.length ? mLabel + " 고정비 반영 (" + pending.length + "건)" : mLabel + " 고정비 반영 완료";
             if (!state.recurring.length) {
                 el.innerHTML = '<li class="cost-empty">월세·구독료처럼 매달 나가는 비용을 등록하면 한 번에 반영할 수 있어요.</li>';
                 return;
@@ -689,7 +1121,7 @@
             el.innerHTML = state.recurring.map(function (r) {
                 var done = pending.indexOf(r) === -1;
                 return '<li class="cost-rec-item">' +
-                    '<span class="cost-rec-name">' + escapeHtml(r.name) + '<small>' + escapeHtml(labelOf(CATEGORIES, r.category)) + " · 매월 " + r.day + "일</small></span>" +
+                    '<span class="cost-rec-name">' + escapeHtml(r.name) + '<small>' + escapeHtml(labelOf(CATEGORIES, r.category)) + " · 매월 " + r.day + "일 · " + escapeHtml(labelOf(METHODS, r.method || "corp_card")) + "</small></span>" +
                     '<span class="cost-rec-amount">' + won(r.amount) + "</span>" +
                     '<span class="cost-rec-state' + (done ? " is-done" : "") + '">' + (done ? "반영됨" : "대기") + "</span>" +
                     '<button type="button" class="cost-icon-btn" data-del-rec="' + r.id + '" aria-label="' + escapeHtml(r.name) + ' 정기 지출 삭제">×</button></li>';
@@ -716,7 +1148,7 @@
             var amount = parseAmount(document.getElementById("r-amount").value);
             var day = Math.min(31, Math.max(1, parseInt(document.getElementById("r-day").value, 10) || 1));
             if (!name || !amount) return;
-            state.recurring.push({ id: uid("rec"), name: name, amount: amount, day: day, category: document.getElementById("r-category").value });
+            state.recurring.push({ id: uid("rec"), name: name, amount: amount, day: day, category: document.getElementById("r-category").value, method: document.getElementById("r-method").value });
             save();
             render();
             document.getElementById("r-name").value = "";
@@ -724,8 +1156,10 @@
             document.getElementById("r-name").focus();
         });
 
+        var recMonth = document.getElementById("rec-month");
+        recMonth.addEventListener("change", renderRecurring);
         document.getElementById("cost-rec-apply").addEventListener("click", function () {
-            var cm = currentMonth();
+            var cm = recMonth.value || currentMonth();
             var y = parseInt(cm.slice(0, 4), 10), m = parseInt(cm.slice(5, 7), 10);
             var lastDay = new Date(y, m, 0).getDate();
             var pending = pendingRecurring(cm);
@@ -737,8 +1171,9 @@
                     item: r.name,
                     category: r.category,
                     vendor: "",
-                    method: "corp_card",
-                    evidence: "card",
+                    method: r.method || "corp_card",
+                    evidence: evidenceFor(r.method || "corp_card"),
+                    kind: "op",
                     memo: "정기 지출 자동 반영",
                     settled: false,
                     recurringId: r.id,
@@ -747,8 +1182,317 @@
             });
             save();
             render();
-            showToast("고정비 " + pending.length + "건을 반영했습니다. 결제수단·증빙이 다르면 내역에서 수정하세요.");
+            showToast(monthLabel(cm) + " 고정비 " + pending.length + "건을 반영했습니다. 증빙이 다르면 내역에서 수정하세요.");
         });
+
+        // ---------- 초기 투자비 산정 표 ----------
+        var planTbody = document.getElementById("plan-tbody");
+        var pMonths = document.getElementById("p-months");
+        var pReserve = document.getElementById("p-reserve");
+        var pInsurance = document.getElementById("p-insurance");
+        function shortYm(ym) { return ym.slice(2, 4) + "." + ym.slice(5, 7); }
+        function planItemById(id) { return state.plan.items.filter(function (x) { return x.id === id; })[0]; }
+        function recurringOf(item) {
+            return item.recurringId ? state.recurring.filter(function (r) { return r.id === item.recurringId; })[0] : null;
+        }
+        function selectHtml(field, list, value, label) {
+            return '<select class="cost-plan-input" data-field="' + field + '" aria-label="' + label + '">' +
+                list.map(function (x) { return '<option value="' + x.id + '"' + (String(x.id) === String(value) ? " selected" : "") + ">" + escapeHtml(x.label) + "</option>"; }).join("") +
+                "</select>";
+        }
+        function offsetOptions(current) {
+            var start = planStartMonth(), n = Math.max(planMonths(), (current || 0) + 1), list = [];
+            for (var i = 0; i < n; i++) list.push({ id: i, label: (i + 1) + "개월 차 (" + shortYm(shiftMonth(start, i)) + ")" });
+            return list;
+        }
+        function planTotalHtml(item) {
+            var total = itemTotal(item);
+            if (item.type !== "monthly") return won(total);
+            var active = Math.max(0, planMonths() - (item.offset || 0));
+            return won(total) + "<small>월 " + wonShort(itemMonthly(item)) + " × " + active + "개월" + (item.category === "payroll" && state.plan.insurancePct ? " · 4대보험 포함" : "") + "</small>";
+        }
+        function planExecHtml(item) {
+            if (item.type === "monthly") {
+                return recurringOf(item)
+                    ? '<span class="cost-rec-state is-done">정기 등록됨</span>'
+                    : '<button type="button" class="cost-link-btn" data-plan-rec>정기 지출 등록</button>';
+            }
+            var done = executedOf(item);
+            if (!done) return '<button type="button" class="cost-link-btn" data-plan-exec>집행</button>';
+            var full = item.amount && done >= item.amount;
+            return '<span class="cost-rec-state' + (full ? " is-done" : "") + '" title="집행 ' + won(done) + '">' + (full ? "집행 완료" : wonShort(done) + " 집행") + "</span>" +
+                (full ? "" : ' <button type="button" class="cost-link-btn" data-plan-exec>추가 집행</button>');
+        }
+        function renderPlanTable() {
+            var items = state.plan.items;
+            if (!items.length) {
+                planTbody.innerHTML = '<tr><td colspan="8" class="cost-empty">아직 항목이 없습니다. 오른쪽 위 <b>자주 쓰는 항목 불러오기</b>로 시작하거나 아래에서 직접 추가하세요.</td></tr>';
+                return;
+            }
+            var order = { once: 0, deposit: 1, monthly: 2 };
+            var sorted = items.slice().sort(function (a, b) { return order[a.type] - order[b.type] || (a.offset || 0) - (b.offset || 0); });
+            planTbody.innerHTML = sorted.map(function (item) {
+                return '<tr data-plan="' + item.id + '" class="is-' + item.type + '">' +
+                    '<td><input type="text" class="cost-plan-input cost-plan-name" data-field="name" value="' + escapeHtml(item.name) + '" maxlength="40" aria-label="항목 이름"></td>' +
+                    "<td>" + selectHtml("category", CATEGORIES, item.category, "분류") + "</td>" +
+                    "<td>" + selectHtml("type", PLAN_TYPES, item.type, "유형") + "</td>" +
+                    "<td>" + selectHtml("offset", offsetOptions(item.offset), item.offset || 0, item.type === "monthly" ? "시작 시점" : "지출 시점") + "</td>" +
+                    '<td class="num"><input type="text" class="cost-plan-input cost-plan-amount' + (item.amount ? "" : " is-empty") + '" data-field="amount" inputmode="numeric" value="' + (item.amount ? item.amount.toLocaleString("ko-KR") : "") + '" placeholder="금액 입력" aria-label="' + escapeHtml(item.name) + (item.type === "monthly" ? " 월 금액" : " 금액") + '"></td>' +
+                    '<td class="num cost-plan-total">' + planTotalHtml(item) + "</td>" +
+                    '<td class="cost-plan-exec">' + planExecHtml(item) + "</td>" +
+                    '<td><button type="button" class="cost-icon-btn" data-plan-del aria-label="' + escapeHtml(item.name) + ' 삭제">×</button></td></tr>';
+            }).join("");
+        }
+        function updatePlanRow(row, item) {
+            row.className = "is-" + item.type;
+            row.querySelector(".cost-plan-total").innerHTML = planTotalHtml(item);
+            row.querySelector(".cost-plan-exec").innerHTML = planExecHtml(item);
+            row.querySelector('[data-field="amount"]').classList.toggle("is-empty", !item.amount);
+        }
+        function renderPlanSummary() {
+            var s = planSummary();
+            var el = document.getElementById("plan-summary");
+            if (!state.plan.items.length) {
+                el.innerHTML = '<p class="cost-plan-sum-empty">항목과 금액을 넣으면<br><b>필요 자금</b>이 여기에 계산됩니다.</p>';
+                return;
+            }
+            var spent = sum(state.expenses);
+            var pct = s.required ? Math.min(100, s.secured / s.required * 100) : 0;
+            var gap = s.secured - s.required;
+            var missing = state.plan.items.filter(function (x) { return !x.amount; }).length;
+            var line = function (label, value, sub) {
+                return "<li><span>" + label + (sub ? "<small>" + sub + "</small>" : "") + "</span><span>" + won(value) + "</span></li>";
+            };
+            el.innerHTML =
+                '<div class="cost-plan-sum-block">' +
+                '<span class="cost-plan-sum-label">필요 자금</span>' +
+                '<strong class="cost-plan-sum-value" title="' + won(s.required) + '">' + wonShort(s.required) + "</strong>" +
+                '<ul class="cost-plan-sum-list">' +
+                line("일회성 투자", s.once) +
+                line("보증금", s.deposit, "나중에 돌려받는 돈") +
+                line("운영비 " + planMonths() + "개월", s.operating, "월 " + wonShort(s.monthly)) +
+                line("예비비 " + (state.plan.reservePct || 0) + "%", s.reserve, "일회성 + 운영비 기준") +
+                "</ul></div>" +
+                '<div class="cost-plan-sum-block">' +
+                '<div class="cost-plan-sum-row"><span>확보 자금</span><b>' + won(s.secured) + "</b></div>" +
+                '<div class="cost-plan-sum-bar" role="img" aria-label="필요 자금 대비 확보 ' + Math.round(pct) + '%"><span class="' + (gap < 0 ? "is-short" : "") + '" style="width:' + pct.toFixed(1) + '%"></span></div>' +
+                '<div class="cost-plan-sum-gap ' + (gap < 0 ? "is-short" : "is-ok") + '">' + (gap < 0 ? won(-gap) + " 부족" : won(gap) + " 여유") + "</div>" +
+                '<p class="cost-plan-sum-note">지금까지 집행 ' + wonShort(spent) + (s.required ? " (필요 자금의 " + Math.round(spent / s.required * 100) + "%)" : "") +
+                (missing ? ' · <span class="is-warn">금액 미입력 ' + missing + "개</span>" : "") + "</p></div>";
+        }
+        function renderPlan() {
+            pMonths.value = planMonths();
+            pReserve.value = state.plan.reservePct;
+            pInsurance.value = state.plan.insurancePct;
+            document.getElementById("p-start-note").textContent = "1개월 차 = " + planStartMonth().slice(0, 4) + "년 " + monthLabel(planStartMonth()) + (state.settings.startDate ? "" : " (시작일 미설정 · 이번 달 기준)");
+            renderPlanTable();
+            renderPlanSummary();
+        }
+        function refreshAfterPlanEdit() {
+            save();
+            renderKpis();
+            renderAlerts();
+            renderUsage();
+            renderOutlook();
+            renderPlanSummary();
+            renderFlow();
+        }
+
+        [[pMonths, "months", 1, 36], [pReserve, "reservePct", 0, 50], [pInsurance, "insurancePct", 0, 30]].forEach(function (p) {
+            p[0].addEventListener("change", function () {
+                var v = parseInt(p[0].value, 10);
+                state.plan[p[1]] = Math.min(p[3], Math.max(p[2], isNaN(v) ? p[2] : v));
+                save();
+                render();
+            });
+        });
+        planTbody.addEventListener("input", function (e) {
+            if (e.target.dataset.field !== "amount") return;
+            var n = parseAmount(e.target.value);
+            e.target.value = n ? n.toLocaleString("ko-KR") : "";
+        });
+        planTbody.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && e.target.tagName === "INPUT") e.target.blur();
+        });
+        planTbody.addEventListener("change", function (e) {
+            var row = e.target.closest("tr[data-plan]");
+            var item = row && planItemById(row.dataset.plan);
+            var field = e.target.dataset.field;
+            if (!item || !field) return;
+            if (field === "name") {
+                var name = e.target.value.trim();
+                if (!name) { e.target.value = item.name; return; }
+                item.name = name;
+            } else if (field === "amount") item.amount = parseAmount(e.target.value);
+            else if (field === "offset") item.offset = parseInt(e.target.value, 10) || 0;
+            else item[field] = e.target.value;
+            updatePlanRow(row, item);
+            refreshAfterPlanEdit();
+        });
+        planTbody.addEventListener("click", function (e) {
+            var btn = e.target.closest("button");
+            var row = btn && btn.closest("tr[data-plan]");
+            var item = row && planItemById(row.dataset.plan);
+            if (!item) return;
+            if (btn.hasAttribute("data-plan-exec")) {
+                startExecute(item);
+            } else if (btn.hasAttribute("data-plan-rec")) {
+                if (!item.amount) { showToast("월 금액을 먼저 입력하세요."); row.querySelector('[data-field="amount"]').focus(); return; }
+                var rec = {
+                    id: uid("rec"), name: item.name, amount: item.amount, category: item.category,
+                    day: item.category === "payroll" ? 25 : 1, method: item.category === "payroll" ? "corp_account" : "corp_card"
+                };
+                state.recurring.push(rec);
+                item.recurringId = rec.id;
+                save();
+                render();
+                showToast("'" + item.name + "'을(를) 정기 지출에 등록했습니다. 매달 '고정비 반영'으로 기록하세요.");
+            } else if (btn.hasAttribute("data-plan-del")) {
+                var idx = state.plan.items.indexOf(item);
+                state.plan.items.splice(idx, 1);
+                save();
+                render();
+                showToast("'" + item.name + "' 항목 삭제됨", function () {
+                    state.plan.items.splice(idx, 0, item);
+                    save();
+                    render();
+                });
+            }
+        });
+        document.getElementById("plan-add-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            var nameEl = document.getElementById("pa-name");
+            var name = nameEl.value.trim();
+            if (!name) return;
+            state.plan.items.push({
+                id: uid("plan"), name: name,
+                category: document.getElementById("pa-category").value,
+                type: document.getElementById("pa-type").value,
+                amount: parseAmount(document.getElementById("pa-amount").value),
+                offset: 0
+            });
+            save();
+            render();
+            nameEl.value = "";
+            document.getElementById("pa-amount").value = "";
+            nameEl.focus();
+        });
+        document.getElementById("pa-type").addEventListener("change", function () {
+            document.getElementById("pa-amount").placeholder = this.value === "monthly" ? "월 금액" : "금액";
+        });
+        document.getElementById("plan-template").addEventListener("click", function () {
+            var names = state.plan.items.map(function (x) { return x.name; });
+            var added = PLAN_TEMPLATE.filter(function (t) { return names.indexOf(t.name) === -1; });
+            if (!added.length) { showToast("자주 쓰는 항목을 이미 모두 불러왔습니다."); return; }
+            added.forEach(function (t) {
+                state.plan.items.push({ id: uid("plan"), name: t.name, category: t.category, type: t.type, amount: 0, offset: 0 });
+            });
+            save();
+            render();
+            showToast(added.length + "개 항목을 불러왔습니다. 필요 없는 항목은 지우고 금액을 입력하세요.");
+            var firstEmpty = planTbody.querySelector(".cost-plan-amount.is-empty");
+            if (firstEmpty) firstEmpty.focus();
+        });
+
+        // ---------- 자금 출처 ----------
+        function renderFunding() {
+            var el = document.getElementById("fund-list");
+            document.getElementById("cost-fund-meta").textContent = state.funding.length ? "합계 " + won(fundingTotal()) : "";
+            if (!state.funding.length) {
+                el.innerHTML = '<li class="cost-empty">자본금, 투자금, 대출, 정부지원금처럼 사업에 쓸 수 있는 돈을 입력하세요.</li>';
+                return;
+            }
+            el.innerHTML = state.funding.slice().sort(function (a, b) { return (a.date || "") < (b.date || "") ? -1 : 1; }).map(function (f) {
+                var future = f.date && f.date > todayIso();
+                return '<li class="cost-rec-item" data-fund="' + f.id + '">' +
+                    '<span class="cost-rec-name">' + escapeHtml(f.name || labelOf(FUND_TYPES, f.type)) + "<small>" + escapeHtml(labelOf(FUND_TYPES, f.type)) + (f.date ? " · " + escapeHtml(f.date) : "") + "</small></span>" +
+                    '<span class="cost-rec-amount">' + won(f.amount) + "</span>" +
+                    '<span class="cost-rec-state' + (future ? "" : " is-done") + '">' + (future ? "입금 예정" : "확보") + "</span>" +
+                    '<button type="button" class="cost-icon-btn" data-del-fund aria-label="' + escapeHtml(f.name || labelOf(FUND_TYPES, f.type)) + ' 삭제">×</button></li>';
+            }).join("");
+        }
+        document.getElementById("fund-list").addEventListener("click", function (e) {
+            var btn = e.target.closest("[data-del-fund]");
+            if (!btn) return;
+            var id = btn.closest("[data-fund]").dataset.fund;
+            var idx = state.funding.findIndex(function (f) { return f.id === id; });
+            if (idx === -1) return;
+            var removed = state.funding.splice(idx, 1)[0];
+            save();
+            render();
+            showToast("자금 '" + (removed.name || labelOf(FUND_TYPES, removed.type)) + "' 삭제됨", function () {
+                state.funding.splice(idx, 0, removed);
+                save();
+                render();
+            });
+        });
+        document.getElementById("fund-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            var amountEl = document.getElementById("fd-amount");
+            var amount = parseAmount(amountEl.value);
+            if (!amount) { amountEl.focus(); return; }
+            var type = document.getElementById("fd-type").value;
+            state.funding.push({
+                id: uid("fund"), type: type,
+                name: document.getElementById("fd-name").value.trim() || labelOf(FUND_TYPES, type),
+                amount: amount,
+                date: document.getElementById("fd-date").value
+            });
+            save();
+            render();
+            document.getElementById("fd-name").value = "";
+            amountEl.value = "";
+            document.getElementById("fd-date").value = "";
+            showToast(labelOf(FUND_TYPES, type) + " " + won(amount) + " 추가됨");
+        });
+
+        // ---------- 월별 자금 흐름 ----------
+        function computeFlow() {
+            var start = planStartMonth(), n = planMonths(), cm = currentMonth();
+            var balance = 0, rows = [];
+            for (var i = 0; i < n; i++) {
+                var ym = shiftMonth(start, i);
+                // 시작 전 입금·지출은 1개월 차에 합산, 기간 뒤 입금은 제외
+                var inflow = sum(state.funding.filter(function (f) {
+                    var m = f.date ? monthKey(f.date) : start;
+                    return i === 0 ? m <= ym : m === ym;
+                }));
+                var actual = sum(state.expenses.filter(function (x) {
+                    var m = monthKey(x.date);
+                    return i === 0 ? m <= ym : m === ym;
+                }));
+                var planned = plannedOutOfMonth(i);
+                var used = ym < cm ? actual : ym === cm ? Math.max(actual, planned) : planned;
+                balance += inflow - used;
+                rows.push({ ym: ym, inflow: inflow, planned: planned, actual: ym <= cm ? actual : null, balance: balance });
+            }
+            return rows;
+        }
+        function firstShortMonth() {
+            if (!state.funding.length && !state.plan.items.length) return null;
+            var hit = computeFlow().filter(function (r) { return r.balance < 0; })[0];
+            return hit ? hit.ym : null;
+        }
+        function renderFlow() {
+            var tbody = document.getElementById("flow-tbody");
+            var meta = document.getElementById("cost-flow-meta");
+            if (!state.funding.length && !state.plan.items.length && !state.expenses.length) {
+                meta.textContent = "";
+                tbody.innerHTML = '<tr><td colspan="5" class="cost-empty">산정표와 자금 출처를 입력하면 달마다 남는 돈이 계산됩니다.</td></tr>';
+                return;
+            }
+            var rows = computeFlow(), cm = currentMonth();
+            var min = Math.min.apply(null, rows.map(function (r) { return r.balance; }));
+            meta.textContent = rows.length + "개월 · 최저 잔액 " + wonShort(min);
+            tbody.innerHTML = rows.map(function (r) {
+                return '<tr class="' + (r.balance < 0 ? "is-short" : "") + (r.ym === cm ? " is-current" : "") + '">' +
+                    "<td>" + r.ym.replace("-", ".") + (r.ym === cm ? ' <span class="cost-kind-tag">이번 달</span>' : "") + "</td>" +
+                    '<td class="num">' + (r.inflow ? wonShort(r.inflow) : "—") + "</td>" +
+                    '<td class="num">' + (r.planned ? wonShort(r.planned) : "—") + "</td>" +
+                    '<td class="num">' + (r.actual == null ? "" : r.actual ? wonShort(r.actual) : "—") + "</td>" +
+                    '<td class="num cost-flow-balance" title="' + won(r.balance) + '">' + wonShort(r.balance) + "</td></tr>";
+            }).join("");
+        }
 
         // ---------- 지출 내역 ----------
         var fltMonth = document.getElementById("flt-month");
@@ -801,9 +1545,11 @@
                     methodHtml += ' <button type="button" class="cost-pill ' + (e.settled ? "is-ok" : "is-pending") + '" data-settle="' + e.id + '" title="클릭하여 정산 상태 변경">' + (e.settled ? "정산완료" : "미정산") + "</button>";
                 }
                 var evClass = e.evidence === "none" ? "is-missing" : isQualified(e) ? "" : "is-weak";
+                var kind = kindOf(e);
                 return '<tr data-id="' + e.id + '">' +
-                    '<td class="cost-td-date">' + escapeHtml(e.date.slice(5).replace("-", ".")) + "</td>" +
-                    '<td><span class="cost-cat-tag">' + escapeHtml(labelOf(CATEGORIES, e.category)) + "</span></td>" +
+                    '<td class="cost-td-date">' + escapeHtml(e.date.slice(2).replace(/-/g, ".")) + "</td>" +
+                    '<td><span class="cost-cat-tag">' + escapeHtml(labelOf(CATEGORIES, e.category)) + "</span>" +
+                    (kind !== "op" ? ' <span class="cost-kind-tag is-' + kind + '">' + KIND_SHORT[kind] + "</span>" : "") + "</td>" +
                     '<td class="cost-td-item"><span>' + escapeHtml(e.item) + "</span>" +
                     (e.vendor || e.memo ? "<small>" + escapeHtml([e.vendor, e.memo].filter(Boolean).join(" · ")) + "</small>" : "") + "</td>" +
                     "<td>" + methodHtml + "</td>" +
@@ -838,12 +1584,9 @@
 
         // ---------- 설정 ----------
         var settingsModal = document.getElementById("modal-cost-settings");
-        var sCapital = document.getElementById("s-capital");
         var sStart = document.getElementById("s-start");
         var sBudgets = document.getElementById("s-budgets");
-        bindAmountFormat(sCapital);
         function openSettings() {
-            sCapital.value = state.settings.capital ? state.settings.capital.toLocaleString("ko-KR") : "";
             sStart.value = state.settings.startDate || "";
             sBudgets.innerHTML = CATEGORIES.map(function (c) {
                 var v = state.settings.budgets[c.id];
@@ -852,7 +1595,7 @@
             }).join("");
             sBudgets.querySelectorAll("input").forEach(bindAmountFormat);
             settingsModal.hidden = false;
-            sCapital.focus();
+            sStart.focus();
         }
         function closeSettings() { settingsModal.hidden = true; }
         document.getElementById("cost-settings-btn").addEventListener("click", openSettings);
@@ -860,7 +1603,6 @@
         document.getElementById("cost-settings-cancel").addEventListener("click", closeSettings);
         settingsModal.addEventListener("click", function (e) { if (e.target === settingsModal) closeSettings(); });
         document.getElementById("cost-settings-save").addEventListener("click", function () {
-            state.settings.capital = parseAmount(sCapital.value);
             state.settings.startDate = sStart.value;
             var budgets = {};
             sBudgets.querySelectorAll("[data-budget]").forEach(function (input) {
@@ -894,9 +1636,9 @@
         document.getElementById("cost-export-csv").addEventListener("click", function () {
             var list = filteredExpenses();
             if (!list.length) { showToast("내보낼 지출이 없습니다."); return; }
-            var header = ["날짜", "분류", "내용", "거래처", "결제수단", "정산", "증빙", "금액", "공제예상부가세", "메모"];
+            var header = ["날짜", "분류", "성격", "내용", "거래처", "결제수단", "정산", "증빙", "금액", "공제예상부가세", "메모"];
             var rows = list.map(function (e) {
-                return [e.date, labelOf(CATEGORIES, e.category), e.item, e.vendor, labelOf(METHODS, e.method),
+                return [e.date, labelOf(CATEGORIES, e.category), KIND_SHORT[kindOf(e)], e.item, e.vendor, labelOf(METHODS, e.method),
                     e.method === "personal" ? (e.settled ? "정산완료" : "미정산") : "",
                     labelOf(EVIDENCES, e.evidence), e.amount, vatEstimate(e), e.memo].map(csvCell).join(",");
             });
@@ -917,11 +1659,7 @@
                     var data = JSON.parse(reader.result);
                     if (!data || !Array.isArray(data.expenses)) throw new Error("invalid");
                     if (!confirm("백업 파일의 지출 " + data.expenses.length + "건으로 현재 데이터를 덮어씁니다. 계속할까요?")) return;
-                    state = {
-                        settings: Object.assign(emptyState().settings, data.settings || {}),
-                        expenses: data.expenses,
-                        recurring: Array.isArray(data.recurring) ? data.recurring : []
-                    };
+                    state = normalize(data);
                     save();
                     resetForm();
                     render();

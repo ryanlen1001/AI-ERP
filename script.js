@@ -1368,7 +1368,7 @@
   // ---------- 대시보드: KPI · 지출 차트 · 이슈 브리핑 ----------
   var COST_KEY = STORAGE_PREFIX + "cost-v1";
   var COST_CATEGORY_LABELS = {
-    payroll: "인건비", rent: "임차료·관리비", equipment: "장비·비품", software: "소프트웨어·구독",
+    payroll: "인건비", rent: "임차료·관리비", equipment: "장비·비품", facility: "시설·인테리어", software: "소프트웨어·구독",
     marketing: "마케팅·광고", outsourcing: "외주·용역", professional: "세무·법무·등록", travel: "교통·출장",
     welfare: "식대·복리후생", entertainment: "접대비", utility: "통신·공과금", etc: "기타"
   };
@@ -1390,7 +1390,7 @@
   }
   function sumAmount(list) { return list.reduce(function (a, e) { return a + (e.amount || 0); }, 0); }
 
-  // 비용관리 데이터 요약 (cost/cost.html과 같은 기준: 최근 3개월 평균으로 런웨이 계산)
+  // 비용관리 데이터 요약 (cost/cost.html과 같은 기준: 일회성·보증금을 뺀 최근 3개월 운영비 평균으로 런웨이 계산)
   function costSnapshot() {
     if (!GW.canAccess("cost", me)) return null;
     var data = readJSON(COST_KEY, null) || { settings: {}, expenses: [] };
@@ -1409,9 +1409,18 @@
       if (ym < first) break;
       burnMonths.push(ym);
     }
-    var burn = expenses.length && burnMonths.length ? burnMonths.reduce(function (a, ym) { return a + sumAmount(byMonth(ym)); }, 0) / burnMonths.length : 0;
+    var operating = function (e) {
+      if (e.kind) return e.kind === "op";
+      return e.category !== "equipment" && e.category !== "facility";
+    };
+    var burn = expenses.length && burnMonths.length ? burnMonths.reduce(function (a, ym) { return a + sumAmount(byMonth(ym).filter(operating)); }, 0) / burnMonths.length : 0;
     var spent = sumAmount(expenses);
     var capital = settings.capital || 0;
+    // 입금 예정 자금은 남은 자금에서 제외 (비용관리의 '남은 자금'과 같은 기준)
+    if (Array.isArray(data.funding) && data.funding.length) {
+      var today = todayIso();
+      capital = sumAmount(data.funding.filter(function (f) { return !f.date || f.date <= today; }));
+    }
     var current = byMonth(cm);
     var cats = {};
     current.forEach(function (e) { cats[e.category] = (cats[e.category] || 0) + (e.amount || 0); });
@@ -1470,10 +1479,10 @@
           label: "남은 자금", value: wonShort(cost.remaining) + "원", title: won(cost.remaining), href: "cost/cost.html",
           delta: cost.runway == null ? "" : "런웨이 " + (cost.runway >= 99 ? "99+" : cost.runway.toFixed(1)) + "개월",
           tone: cost.runway == null ? "neutral" : cost.runway < 3 ? "bad" : cost.runway < 6 ? "neutral" : "good",
-          sub: "월평균 지출 " + wonShort(cost.burn) + "원 (최근 3개월)"
+          sub: "월평균 운영비 " + wonShort(cost.burn) + "원 (최근 3개월)"
         });
       } else {
-        kpis.push({ label: "남은 자금", value: "미설정", href: "cost/cost.html", sub: "비용관리에서 초기 자금을 설정하세요" });
+        kpis.push({ label: "남은 자금", value: "미설정", href: "cost/cost.html", sub: "비용관리의 자금 출처에서 확보 자금을 입력하세요" });
       }
     } else {
       kpis.push({ label: "오늘 마감", value: dueToday + "건", sub: "업무 요청 · 할 일 합계" });

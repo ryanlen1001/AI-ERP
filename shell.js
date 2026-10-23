@@ -57,11 +57,14 @@
     { group: null, items: [{ id: "home", label: "홈", icon: "home", href: "index.html" }] },
     {
       group: "업무",
-      items: [
-        { id: "sales", label: "프로젝트 관리", icon: "briefcase", href: "sales/sales.html" },
-        { id: "receipt", label: "전표관리", icon: "receipt", href: "receipt/receipt.html" },
-        { id: "cost", label: "비용관리", icon: "wallet", href: "cost/cost.html" }
-      ]
+      items: (function () {
+        var order = GW.getMenuOrder();
+        return [
+          { id: "sales", label: "프로젝트 관리", icon: "briefcase", href: "sales/sales.html" },
+          { id: "cost", label: "비용관리", icon: "wallet", href: "cost/cost.html" },
+          { id: "receipt", label: "전표관리", icon: "receipt", href: "receipt/receipt.html" }
+        ].sort(function (a, b) { return order.indexOf(a.id) - order.indexOf(b.id); });
+      })()
     },
     {
       group: "준비 중",
@@ -82,11 +85,11 @@
     if (!allowed) tag = '<span class="nav-tag">' + icon("lock", "icon-xs") + "</span>";
     else if (item.soon) tag = '<span class="nav-tag">준비 중</span>';
     if (allowed && item.href && !item.soon) {
-      return '<a class="nav-item' + (active ? " is-active" : "") + '" href="' + ROOT + item.href + '"' + (active ? ' aria-current="page"' : "") + ">" +
+      return '<a class="nav-item' + (active ? " is-active" : "") + '" data-menu="' + item.id + '" href="' + ROOT + item.href + '"' + (active ? ' aria-current="page"' : "") + ">" +
         icon(item.icon) + '<span class="nav-label">' + escapeHtml(item.label) + "</span>" + tag + "</a>";
     }
     var reason = !allowed ? "접근 권한이 없습니다" : "준비 중인 기능입니다";
-    return '<button type="button" class="nav-item is-disabled" data-reason="' + escapeHtml(item.label + ": " + reason) + '">' +
+    return '<button type="button" class="nav-item is-disabled" data-menu="' + item.id + '" data-reason="' + escapeHtml(item.label + ": " + reason) + '">' +
       icon(item.icon) + '<span class="nav-label">' + escapeHtml(item.label) + "</span>" + tag + "</button>";
   }
 

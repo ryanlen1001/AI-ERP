@@ -72,6 +72,10 @@
 
             <!-- 메뉴 권한 -->
             <section class="admin-card" id="panel-perms" role="tabpanel" aria-labelledby="tab-perms" hidden>
+                <h2 class="admin-section-title">업무 메뉴 순서</h2>
+                <p class="admin-help" id="order-help"></p>
+                <ol class="admin-order-list" id="order-list"></ol>
+                <h2 class="admin-section-title">메뉴별 접근 권한</h2>
                 <p class="admin-help" id="perm-help"></p>
                 <div class="admin-table-wrap">
                     <table class="admin-table admin-perm-table">
@@ -119,6 +123,7 @@
         <button type="button" class="app-toast-action" id="app-toast-action" hidden>실행취소</button>
     </div>
 
+    <script src="../sync.js"></script>
     <script src="../members.js"></script>
     <script src="../shell.js"></script>
     <script>
@@ -139,6 +144,9 @@
         document.getElementById("perm-help").textContent = amMaster
             ? "메뉴마다 접근할 수 있는 등급을 체크하세요. 체크하지 않은 등급에게는 메인 화면에 잠금 표시가 나오고 화면에 들어갈 수 없습니다. 마스터는 항상 모든 메뉴에 접근할 수 있습니다."
             : "현재 메뉴별 접근 등급입니다. 변경은 마스터만 할 수 있습니다.";
+        document.getElementById("order-help").textContent = amMaster
+            ? "왼쪽 메뉴의 '업무' 그룹에 표시되는 순서입니다. 위·아래 버튼으로 바꾸면 바로 저장됩니다."
+            : "왼쪽 메뉴의 '업무' 그룹에 표시되는 순서입니다. 변경은 마스터만 할 수 있습니다.";
 
         function escapeHtml(s) {
             var div = document.createElement("div");
@@ -441,11 +449,57 @@
             showToast(menu.label + " → " + summary + " 접근 가능");
         });
 
+        // ---------- 업무 메뉴 순서 ----------
+        function menuLabel(id) {
+            return (GW.MENUS.filter(function (m) { return m.id === id; })[0] || {}).label || id;
+        }
+        function renderOrder() {
+            var order = GW.getMenuOrder();
+            document.getElementById("order-list").innerHTML = order.map(function (id, i) {
+                var label = escapeHtml(menuLabel(id));
+                return '<li data-id="' + id + '"><span class="admin-order-no">' + (i + 1) + '</span><span class="admin-order-label">' + label + "</span>" +
+                    (amMaster
+                        ? '<button type="button" class="btn-secondary admin-order-btn" data-move="-1" aria-label="' + label + ' 위로"' + (i === 0 ? " disabled" : "") + ">▲</button>" +
+                          '<button type="button" class="btn-secondary admin-order-btn" data-move="1" aria-label="' + label + ' 아래로"' + (i === order.length - 1 ? " disabled" : "") + ">▼</button>"
+                        : "") +
+                    "</li>";
+            }).join("");
+        }
+        // 이 화면의 사이드바에도 바로 반영
+        function applySidebarOrder(order) {
+            var first = document.querySelector('.side-nav [data-menu="' + order[0] + '"]');
+            if (!first) return;
+            var group = first.parentNode;
+            order.forEach(function (id) {
+                var el = group.querySelector('[data-menu="' + id + '"]');
+                if (el) group.appendChild(el);
+            });
+        }
+        document.getElementById("order-list").addEventListener("click", function (e) {
+            var btn = e.target.closest("button[data-move]");
+            if (!btn || !amMaster) return;
+            var order = GW.getMenuOrder();
+            var id = btn.closest("li[data-id]").dataset.id;
+            var from = order.indexOf(id), to = from + Number(btn.dataset.move);
+            if (from === -1 || to < 0 || to >= order.length) return;
+            order.splice(from, 1);
+            order.splice(to, 0, id);
+            GW.saveMenuOrder(order);
+            applySidebarOrder(order);
+            renderOrder();
+            var moved = document.querySelector('#order-list li[data-id="' + id + '"] button[data-move="' + btn.dataset.move + '"]');
+            if (moved && !moved.disabled) moved.focus();
+            var summary = order.map(menuLabel).join(" → ");
+            GW.log("메뉴 순서 변경", summary);
+            showToast("업무 메뉴 순서: " + summary);
+        });
+
         // ---------- 데이터 ----------
         var STORAGE_LABELS = {
             "members": "회원 목록",
             "current-member": "현재 사용자",
             "menu-permissions": "메뉴 권한",
+            "menu-order": "메뉴 순서",
             "admin-log": "관리자 변경 이력",
             "todos": "할 일",
             "work-instructions": "업무 요청",
@@ -518,6 +572,7 @@
         renderKpis();
         renderMembers();
         renderPerms();
+        renderOrder();
     })();
     </script>
 </body>
