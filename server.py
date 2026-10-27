@@ -6,6 +6,7 @@
 
   python3 server.py                  # 0.0.0.0:8765
   GW_PORT=9000 python3 server.py
+  GW_DATA_GO_KR_KEY=인증키 python3 server.py   # 공휴일·사업자 조회 (없으면 data/data-go-kr.key)
 
 로그인: 아이디·비밀번호 계정(회원과 1:1)과 세션 쿠키를 사용한다. 처음 접속하면 login.html에서 마스터 계정을 만든다.
   GW_PASSWORD 또는 data/password 파일이 있으면 그 값이 '최초 설정 키'가 된다(없으면 누구나 최초 설정 가능).
@@ -19,15 +20,20 @@ import secrets
 import sqlite3
 import threading
 import time
+import urllib.error
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(ROOT, "data")
 DB_PATH = os.path.join(DATA_DIR, "groupware.db")
+DATA_GO_KR_KEY_FILE = os.path.join(DATA_DIR, "data-go-kr.key")
+HOLIDAY_DIR = os.path.join(DATA_DIR, "holidays")
 LEGACY_JSON = os.path.join(DATA_DIR, "store.json")
 BACKUP_DIR = os.path.join(DATA_DIR, "backups")
 BACKUP_DAILY_DAYS = 90
@@ -51,8 +57,225 @@ signup_hits = {}  # ip -> [가입 요청 시각]
 reset_hits = {}  # ip -> [비밀번호 초기화 요청 시각]
 SIGNUPS_PER_HOUR = 5
 RESET_REQUESTS_PER_HOUR = 10
+BIZ_PER_MINUTE = 30
+HOLIDAY_TTL = 7 * 86400
+HOLIDAY_URL = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
+BIZ_URL = "https://api.odcloud.kr/api/nts-businessman/v1/status"
+BIZ_NO_RE = re.compile(r"^\d{10}$")
 
 lock = threading.Lock()
+biz_hits = {}  # ip -> [조회 시각]
+holiday_locks = {}
+
+
+def data_go_kr_key():
+    """공공데이터포털 인증키. 환경 변수가 있으면 파일보다 우선한다."""
+    env = os.environ.get("GW_DATA_GO_KR_KEY", "").strip()
+    if env:
+        return env
+    try:
+        with open(DATA_GO_KR_KEY_FILE, encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def key_from_env():
+    return bool(os.environ.get("GW_DATA_GO_KR_KEY", "").strip())
+
+
+def save_data_go_kr_key(key):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(DATA_GO_KR_KEY_FILE, "w", encoding="utf-8") as f:
+        f.write(key.strip() + "\n")
+    try:
+        os.chmod(DATA_GO_KR_KEY_FILE, 0o600)
+    except OSError:
+        pass
+
+
+def hide_key(text, key):
+    if not text or not key:
+        return text or ""
+    hidden = text.replace(key, "***").replace(quote(key, safe=""), "***")
+    return hidden[:300]
+
+
+def key_variants(key):
+    """인코딩된 키와 디코딩된 키를 중복 없이 돌려준다."""
+    opts = []
+    if "%" in key:
+        opts.append(key)
+        plain = unquote(key)
+        if plain != key:
+            opts.append(quote(plain, safe=""))
+    else:
+        opts.append(quote(key, safe=""))
+    out = []
+    for item in opts:
+        if item and item not in out:
+            out.append(item)
+    return out
+
+
+def http_json(url, method="GET", payload=None, timeout=12):
+    data = None
+    headers = {"Accept": "application/json", "User-Agent": "ai-groupware"}
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json; charset=utf-8"
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as res:
+            raw = res.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", "replace")
+        if raw.lstrip().startswith("<"):
+            raise RuntimeError("외부 API 오류 (%s)" % exc.code)
+        try:
+            parsed = json.loads(raw)
+        except ValueError:
+            raise RuntimeError("외부 API 오류 (%s)" % exc.code)
+        if isinstance(parsed, dict):
+            raise RuntimeError(str(parsed.get("msg") or parsed.get("message") or "외부 API 오류"))
+        raise RuntimeError("외부 API 오류 (%s)" % exc.code)
+    if raw.lstrip().startswith("<"):
+        raise RuntimeError("외부 API가 JSON 대신 XML을 반환했습니다. 인증키(디코딩 키)와 API 활용 신청을 확인하세요.")
+    return json.loads(raw)
+
+
+def parse_holiday_items(body):
+    """특일 정보 응답에서 공휴일(날짜, 이름) 목록을 뽑는다. 결과 코드가 00이 아니면 예외."""
+    response = body.get("response") if isinstance(body, dict) else None
+    header = (response or {}).get("header") or {}
+    code = str(header.get("resultCode") or "")
+    if code != "00":
+        raise RuntimeError("%s %s" % (code or "??", header.get("resultMsg") or "공휴일 조회 실패"))
+    items = ((response or {}).get("body") or {}).get("items") or {}
+    item = items.get("item") if isinstance(items, dict) else None
+    if not item:
+        return []
+    if isinstance(item, dict):
+        item = [item]
+    found = []
+    for it in item:
+        if str(it.get("isHoliday") or "Y") != "Y":
+            continue
+        loc = str(it.get("locdate") or "")
+        if len(loc) == 8 and loc.isdigit():
+            found.append(("%s-%s-%s" % (loc[:4], loc[4:6], loc[6:8]), str(it.get("dateName") or "공휴일")))
+    return found
+
+
+def fetch_holiday_month(year, month, key_token):
+    query = "serviceKey=" + key_token + "&" + urlencode({
+        "solYear": str(year),
+        "solMonth": "%02d" % month,
+        "numOfRows": "30",
+        "_type": "json",
+    })
+    return parse_holiday_items(http_json(HOLIDAY_URL + "?" + query))
+
+
+def fetch_holiday_year(year, key):
+    variants = key_variants(key)
+    chosen = variants[0]
+    try:
+        fetch_holiday_month(year, 1, chosen)
+    except RuntimeError as exc:
+        if len(variants) > 1 and ("30" in str(exc) or "SERVICE_KEY" in str(exc)):
+            chosen = variants[1]
+        else:
+            raise
+    days = {}
+
+    def one(month):
+        return fetch_holiday_month(year, month, chosen)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for found in pool.map(one, range(1, 13)):
+            for iso, name in found:
+                if iso in days and name not in days[iso].split("·"):
+                    days[iso] = days[iso] + "·" + name
+                else:
+                    days.setdefault(iso, name)
+    return [{"date": iso, "name": days[iso]} for iso in sorted(days)]
+
+
+def read_holiday_cache(year):
+    path = os.path.join(HOLIDAY_DIR, "%d.json" % year)
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("days"), list):
+        return None
+    return data
+
+
+def holiday_year(year, key):
+    """(days, error). 캐시가 신선하면 API를 호출하지 않는다."""
+    with lock:
+        if year not in holiday_locks:
+            holiday_locks[year] = threading.Lock()
+        year_lock = holiday_locks[year]
+    with year_lock:
+        cached = read_holiday_cache(year)
+        if cached and time.time() - float(cached.get("fetched") or 0) < float(cached.get("ttl") or HOLIDAY_TTL):
+            return cached["days"], ""
+        if not key:
+            return (cached["days"] if cached else []), ""
+        try:
+            days = fetch_holiday_year(year, key)
+        except Exception as exc:
+            if cached:
+                return cached["days"], "공휴일 갱신에 실패해 저장된 목록을 사용합니다."
+            return [], hide_key(str(exc), key)
+        ttl = HOLIDAY_TTL if len(days) >= 8 else 86400
+        os.makedirs(HOLIDAY_DIR, exist_ok=True)
+        with open(os.path.join(HOLIDAY_DIR, "%d.json" % year), "w", encoding="utf-8") as f:
+            json.dump({"fetched": time.time(), "ttl": ttl, "days": days}, f, ensure_ascii=False)
+        return days, ""
+
+
+def format_ymd(value):
+    text = str(value or "")
+    if len(text) == 8 and text.isdigit():
+        return "%s-%s-%s" % (text[:4], text[4:6], text[6:8])
+    return text
+
+
+def lookup_business(b_no, key):
+    last = None
+    for token in key_variants(key):
+        try:
+            body = http_json(BIZ_URL + "?serviceKey=" + token, "POST", {"b_no": [b_no]})
+        except Exception as exc:
+            last = exc
+            continue
+        if not isinstance(body, dict) or "data" not in body:
+            last = RuntimeError(str((body or {}).get("msg") or (body or {}).get("message") or "사업자 조회에 실패했습니다.") if isinstance(body, dict) else "사업자 조회에 실패했습니다.")
+            continue
+        row = (body.get("data") or [None])[0] or {}
+        return {
+            "b_no": row.get("b_no") or b_no,
+            "statusCode": row.get("b_stt_cd") or "",
+            "status": row.get("b_stt") or "",
+            "taxType": row.get("tax_type") or "",
+            "taxTypeCode": row.get("tax_type_cd") or "",
+            "endDate": format_ymd(row.get("end_dt")),
+        }
+    raise RuntimeError(hide_key(str(last or "사업자 조회에 실패했습니다."), key))
+
+
+def biz_rate_limited(ip):
+    now = time.time()
+    biz_hits[ip] = [t for t in biz_hits.get(ip, []) if now - t < 60]
+    if len(biz_hits[ip]) >= BIZ_PER_MINUTE:
+        return True
+    biz_hits[ip].append(now)
+    return False
 
 
 def connect():
@@ -454,6 +677,75 @@ class Handler(SimpleHTTPRequestHandler):
             return True
         return any(path == p or path.startswith(p + "/") for p in BLOCKED_PREFIXES if p != "/.")
 
+    def holiday_span(self):
+        qs = parse_qs(urlsplit(self.path).query)
+        this_year = date.today().year
+        try:
+            start = int((qs.get("from") or [str(this_year)])[0])
+            end = int((qs.get("to") or [str(start)])[0])
+        except ValueError:
+            start = end = this_year
+        start = max(2000, min(2100, start))
+        end = max(2000, min(2100, end))
+        if end < start:
+            start, end = end, start
+        if end - start > 2:
+            end = start + 2
+        return range(start, end + 1)
+
+    def send_holidays(self):
+        key = data_go_kr_key()
+        days = []
+        errors = []
+        for year in self.holiday_span():
+            found, error = holiday_year(year, key)
+            days.extend(found)
+            if error and error not in errors:
+                errors.append(error)
+        self.send_json(HTTPStatus.OK, {
+            "configured": bool(key),
+            "days": days,
+            "error": errors[0] if errors else "",
+        })
+
+    def send_integration_status(self, member_id):
+        me = member_of(member_id) or {}
+        key = data_go_kr_key()
+        payload = {"configured": bool(key), "fromEnv": key_from_env()}
+        if me.get("role") == "master" and key and not key_from_env():
+            payload["hint"] = key[:4] + "…" + key[-4:] if len(key) > 12 else "설정됨"
+        self.send_json(HTTPStatus.OK, payload)
+
+    def handle_integration_key(self, body, member_id):
+        me = member_of(member_id) or {}
+        if me.get("role") != "master":
+            return self.send_json(HTTPStatus.FORBIDDEN, {"error": "인증키는 마스터만 저장할 수 있습니다."})
+        if key_from_env():
+            return self.send_json(HTTPStatus.CONFLICT, {"error": "환경 변수 GW_DATA_GO_KR_KEY가 설정되어 있어 화면에서 바꿀 수 없습니다."})
+        key = str(body.get("key") or "").strip()
+        if len(key) < 10 or len(key) > 400 or any(ch.isspace() for ch in key):
+            return self.send_json(HTTPStatus.BAD_REQUEST, {"error": "인증키 형식이 올바르지 않습니다."})
+        save_data_go_kr_key(key)
+        self.send_json(HTTPStatus.OK, {"ok": True, "configured": True})
+
+    def handle_business(self, body, ip):
+        if biz_rate_limited(ip):
+            return self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "조회가 너무 많습니다. 잠시 후 다시 해 주세요."})
+        key = data_go_kr_key()
+        if not key:
+            return self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {
+                "configured": False,
+                "error": "공공데이터포털 인증키가 없습니다.",
+            })
+        b_no = re.sub(r"\D", "", str(body.get("b_no") or ""))
+        if not BIZ_NO_RE.match(b_no):
+            return self.send_json(HTTPStatus.BAD_REQUEST, {"error": "사업자등록번호 10자리를 입력하세요."})
+        try:
+            found = lookup_business(b_no, key)
+        except Exception as exc:
+            return self.send_json(HTTPStatus.BAD_GATEWAY, {"error": hide_key(str(exc), key) or "사업자 조회에 실패했습니다."})
+        self.send_json(HTTPStatus.OK, found)
+
     # ---------- GET / HEAD ----------
     def do_GET(self):
         path = urlsplit(self.path).path
@@ -483,6 +775,10 @@ class Handler(SimpleHTTPRequestHandler):
                 if (member_of(member_id) or {}).get("role") not in ("master", "admin"):
                     return self.send_json(HTTPStatus.FORBIDDEN, {"error": "권한이 없습니다."})
                 return self.send_json(HTTPStatus.OK, pending_signups())
+            if path == "/api/holidays":
+                return self.send_holidays()
+            if path == "/api/integrations":
+                return self.send_integration_status(member_id)
         return super().do_GET()
 
     def do_HEAD(self):
@@ -498,6 +794,15 @@ class Handler(SimpleHTTPRequestHandler):
         path = urlsplit(self.path).path
         ip = self.client_address[0]
         body = self.read_json()
+        if path == "/api/business/status":
+            if self.require_login() is None:
+                return
+            return self.handle_business(body, ip)
+        if path == "/api/integrations/key":
+            member_id = self.require_login()
+            if member_id is None:
+                return
+            return self.handle_integration_key(body, member_id)
         if path == "/api/login":
             if rate_limited(ip):
                 return self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "시도가 너무 많습니다. 잠시 후 다시 해 주세요."})

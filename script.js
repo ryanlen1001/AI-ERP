@@ -154,6 +154,7 @@
   }
   function todayIso() { return isoOffset(0); }
   function dueState(dueDate) {
+    if (window.GW && GW.dueState) return GW.dueState(dueDate);
     if (!dueDate) return "";
     var t = todayIso();
     if (dueDate < t) return "overdue";
@@ -167,8 +168,12 @@
   function formatDueDisplay(dueDate) {
     if (!dueDate) return "—";
     var part = dueDate.split("-");
-    if (part.length >= 3) return parseInt(part[1], 10) + "." + part[2];
-    return dueDate;
+    var base = part.length >= 3 ? parseInt(part[1], 10) + "." + part[2] : dueDate;
+    if (dueState(dueDate) === "eve") {
+      var name = GW.holidayName(dueDate);
+      return base + " " + (name || "휴무");
+    }
+    return base;
   }
   function markSampleSeeded() {
     if (localStorage.getItem(ONBOARDING_KEY) == null) localStorage.setItem(SAMPLE_KEY, "1");
@@ -432,7 +437,7 @@
     workInstructionsData.forEach(function (item) {
       if (uiState.workFilter === "done" ? !item.done : item.done) return;
       if (uiState.workFilter === "urgent" && item.type !== "urgent") return;
-      if (uiState.workFilter === "today" && dueState(item.dueDate) !== "today") return;
+      if (uiState.workFilter === "today" && dueState(item.dueDate) !== "today" && dueState(item.dueDate) !== "eve") return;
       if (uiState.workFilter === "open" && item.done) return;
       if (!matchesSearch(item.text + " " + (item.requester || ""), uiState.searchQuery)) return;
       num++;
@@ -443,6 +448,7 @@
       var typeClass = item.type === "urgent" ? "urgent" : "normal";
       var typeLabel = item.type === "urgent" ? "긴급" : "일반";
       var dateStr = formatWorkDue(item.dueDate);
+      if (dueState(item.dueDate) === "eve") dateStr += GW.holidayName(item.dueDate) ? " " + GW.holidayName(item.dueDate) : " 휴무";
       var requesterStr = item.requester ? escapeHtml(item.requester) : "—";
       li.innerHTML =
         "<span class=\"work-instructions-num\">" + num + "</span>" +
@@ -648,7 +654,8 @@
     if (!sub) return;
     var t = new Date();
     var count = (calendarEvents[todayIso()] || []).length;
-    sub.textContent = (t.getMonth() + 1) + "월 " + t.getDate() + "일 · " + (count ? "오늘 일정 " + count + "건" : "오늘 일정 없음");
+    var name = GW.holidayName(todayIso());
+    sub.textContent = (t.getMonth() + 1) + "월 " + t.getDate() + "일" + (name ? " · " + name : "") + " · " + (count ? "오늘 일정 " + count + "건" : "오늘 일정 없음");
   }
   if (calendarToggle) {
     calendarToggle.addEventListener("click", function () {
@@ -668,16 +675,22 @@
       calendarEventsEl.hidden = true;
       return;
     }
+    var holiday = GW.holidayName(dateStr);
+    var meta = GW.holidayMeta ? GW.holidayMeta() : {};
+    var hint = "";
+    if (holiday) hint = "<p class=\"calendar-holiday\">" + escapeHtml(holiday) + "</p>";
+    else if (meta.ready && meta.configured === false && GW.isMaster()) hint = "<p class=\"calendar-holiday-hint\">인증키를 한 번 저장하면 공휴일 이름이 자동으로 표시됩니다.</p>";
+    else if (meta.error && GW.isMaster()) hint = "<p class=\"calendar-holiday-hint\">" + escapeHtml(meta.error) + "</p>";
     var list = calendarEvents[dateStr];
     if (!list || list.length === 0) {
-      calendarEventsEl.innerHTML = "<p class=\"calendar-events-empty\">등록된 일정이 없습니다.</p>";
+      calendarEventsEl.innerHTML = hint + "<p class=\"calendar-events-empty\">등록된 일정이 없습니다.</p>";
       calendarEventsEl.hidden = false;
       return;
     }
     var start = function (ev) { return ev.startTime || ev.time || ""; };
     var withIndex = (calendarEvents[dateStr] || []).map(function (ev, idx) { return { ev: ev, idx: idx }; });
     withIndex.sort(function (a, b) { return start(a.ev).localeCompare(start(b.ev)); });
-    calendarEventsEl.innerHTML = "<ul class=\"calendar-events-list\">" +
+    calendarEventsEl.innerHTML = hint + "<ul class=\"calendar-events-list\">" +
       withIndex.map(function (item) {
         var ev = item.ev;
         var s = ev.startTime || ev.time || "", e = ev.endTime || s;
@@ -775,7 +788,8 @@
     if (parts.length !== 3) return;
     fillCalendarEventTimeSelects();
     dateValue.value = dateStr;
-    dateDisplay.textContent = parts[0] + "년 " + parseInt(parts[1], 10) + "월 " + parseInt(parts[2], 10) + "일";
+    var holidayLabel = GW.holidayName(dateStr);
+    dateDisplay.textContent = parts[0] + "년 " + parseInt(parts[1], 10) + "월 " + parseInt(parts[2], 10) + "일" + (holidayLabel ? " · " + holidayLabel : "");
     var isEdit = eventIndex != null && eventIndex >= 0 && calendarEvents[dateStr] && calendarEvents[dateStr][eventIndex];
     if (editIndexInput) editIndexInput.value = isEdit ? String(eventIndex) : "-1";
     setCalendarEventModalMode(!!isEdit);
@@ -913,6 +927,11 @@
       if (cell.other) span.classList.add("other-month");
       var dayOfWeek = index % 7;
       if (dayOfWeek === 0 || dayOfWeek === 6) span.classList.add("weekend");
+      var holidayLabel = GW.holidayName(cell.dateKey);
+      if (holidayLabel) {
+        span.classList.add("holiday");
+        span.title = holidayLabel;
+      }
       if (!cell.other && y === today.getFullYear() && m === today.getMonth() && cell.day === today.getDate()) {
         span.classList.add("today");
       }
@@ -944,6 +963,12 @@
   }
   renderCalendar();
   renderCalendarEvents(calendarSelectedDate);
+  document.addEventListener("gw-holidays", function () {
+    renderCalendar();
+    renderCalendarEvents(calendarSelectedDate);
+    updateCalendarToggle();
+    refreshEfficiencyUI();
+  });
 
   (function () {
     var modal = document.getElementById("modal-calendar-event");
@@ -1254,7 +1279,7 @@
     return items.filter(function (item) {
       if (!matchesSearch(item.text, uiState.searchQuery)) return false;
       if (focus === "urgent") return item.kind === "work" && item.type === "urgent";
-      if (focus === "today") return dueState(item.dueDate) === "today";
+      if (focus === "today") return dueState(item.dueDate) === "today" || dueState(item.dueDate) === "eve";
       if (focus === "overdue") return dueState(item.dueDate) === "overdue";
       if (focus === "mine") return !item.assignee || item.assignee === CURRENT_USER;
       return true;
@@ -1263,7 +1288,7 @@
         var s = dueState(it.dueDate);
         if (it.type === "urgent") return 0;
         if (s === "overdue") return 1;
-        if (s === "today") return 2;
+        if (s === "today" || s === "eve") return 2;
         return 3;
       };
       var ra = rank(a), rb = rank(b);
@@ -1277,7 +1302,7 @@
     if (window.GWShell) GWShell.refreshNotifications();
     var all = collectFocusItems();
     var urgentCount = all.filter(function (i) { return i.kind === "work" && i.type === "urgent"; }).length;
-    var todayCount = all.filter(function (i) { return dueState(i.dueDate) === "today"; }).length;
+    var todayCount = all.filter(function (i) { var s = dueState(i.dueDate); return s === "today" || s === "eve"; }).length;
     var overdueCount = all.filter(function (i) { return dueState(i.dueDate) === "overdue"; }).length;
     var inboxCount = urgentCount + todayCount + overdueCount;
 
@@ -1455,14 +1480,17 @@
     var dateEl = document.getElementById("dash-date");
     if (!dateEl) return;
     var now = new Date();
-    dateEl.textContent = now.getFullYear() + "년 " + (now.getMonth() + 1) + "월 " + now.getDate() + "일 (" + "일월화수목금토".charAt(now.getDay()) + ") · 오늘 처리할 업무를 확인하세요.";
+    var todayName = GW.holidayName(todayIso());
+    var offNote = GW.isOff(todayIso()) ? " · 오늘은 쉬는 날이라 마감 알림을 쉬어 둡니다" : "";
+    dateEl.textContent = now.getFullYear() + "년 " + (now.getMonth() + 1) + "월 " + now.getDate() + "일 (" + "일월화수목금토".charAt(now.getDay()) + ")" +
+      (todayName ? " · " + todayName : "") + offNote + " · 오늘 처리할 업무를 확인하세요.";
 
     var openWork = workInstructionsData.filter(function (w) { return !w.done; });
     var openTodo = todoData.filter(function (t) { return !t.done; });
     var openAll = openWork.concat(openTodo);
     var urgent = openWork.filter(function (w) { return w.type === "urgent"; }).length;
     var overdue = openAll.filter(function (x) { return dueState(x.dueDate) === "overdue"; });
-    var dueToday = openAll.filter(function (x) { return dueState(x.dueDate) === "today"; }).length;
+    var dueToday = openAll.filter(function (x) { var s = dueState(x.dueDate); return s === "today" || s === "eve"; }).length;
     var cost = costSnapshot();
 
     var kpis = [];
@@ -1608,10 +1636,37 @@
     });
   }
 
+  function closedPartners() {
+    var found = {};
+    function take(rows, href, ok) {
+      (rows || []).forEach(function (row) {
+        if (row.bizStatus !== "02" && row.bizStatus !== "03") return;
+        if (ok && !ok(row)) return;
+        var key = row.bizNo || row.partner || row.vendor || "";
+        if (!key || found[key]) return;
+        found[key] = { name: row.partner || row.vendor || "거래처", status: row.bizStatusName || "", href: href };
+      });
+    }
+    try {
+      if (GW.canAccess("sales")) take(readJSON(STORAGE_PREFIX + "projects", []), "sales/sales.html", function (p) { return p.status !== "done" && p.status !== "cancel"; });
+      if (GW.canAccess("receipt")) take(readJSON(STORAGE_PREFIX + "receipts", []), "receipt/receipt.html", function (v) { return v.status !== "rejected"; });
+      if (GW.canAccess("cost")) {
+        var cost = readJSON(STORAGE_PREFIX + "cost-v1", null);
+        take(cost && cost.expenses, "cost/cost.html");
+      }
+    } catch (e) {}
+    return Object.keys(found).map(function (key) { return found[key]; });
+  }
   function renderBriefing(cost, overdue, urgent, dueToday) {
     var host = document.getElementById("dash-brief");
     if (!host) return;
     var items = [];
+    var eve = workInstructionsData.filter(function (x) { return !x.done && dueState(x.dueDate) === "eve"; })
+      .concat(todoData.filter(function (x) { return !x.done && dueState(x.dueDate) === "eve"; }));
+    if (eve.length) {
+      var eveName = GW.holidayName(eve[0].dueDate) || "휴무";
+      items.push({ tone: "warning", icon: "clock", title: "휴무 전 마감 " + eve.length + "건", text: eveName + " 전에 끝낼 업무입니다. " + eve[0].text, focus: "today" });
+    }
     if (overdue.length) items.push({ tone: "danger", icon: "alert", title: "기한이 지난 업무 " + overdue.length + "건", text: overdue[0].text + (overdue.length > 1 ? " 외 " + (overdue.length - 1) + "건" : ""), focus: "overdue" });
     if (urgent) items.push({ tone: "danger", icon: "alert", title: "긴급 업무 요청 " + urgent + "건", text: "다른 업무보다 먼저 처리하세요.", focus: "urgent" });
     if (cost) {
@@ -1629,6 +1684,8 @@
     }
     var todaysEvents = ((calendarEvents || {})[todayIso()] || []).slice().sort(function (a, b) { return String(a.startTime).localeCompare(String(b.startTime)); });
     if (todaysEvents.length) items.push({ tone: "info", icon: "clock", title: "오늘 일정 " + todaysEvents.length + "건", text: (todaysEvents[0].startTime || "") + " " + todaysEvents[0].title });
+    var closed = closedPartners();
+    if (closed.length) items.push({ tone: "danger", icon: "alert", title: "휴·폐업 거래처 " + closed.length + "곳", text: closed[0].name + (closed[0].status ? " · " + closed[0].status : ""), href: closed[0].href });
     if (!items.length && dueToday) items.push({ tone: "info", icon: "clock", title: "오늘 마감 " + dueToday + "건", text: "오늘 안에 처리할 업무가 있습니다.", focus: "today" });
     if (!items.length) items.push({ tone: "success", icon: "check", title: "확인이 필요한 이슈가 없습니다", text: "급한 업무와 비용 이슈가 모두 정리되어 있어요." });
 

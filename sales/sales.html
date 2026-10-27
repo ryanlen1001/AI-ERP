@@ -16,7 +16,27 @@
                     <p class="page-desc">프로젝트 수주 등록, 진행 현황, 납품과 매출을 연계해 관리합니다.</p>
                 </div>
             </div>
-            <div class="page-actions">
+        </div>
+
+        <section class="card pj-summary" aria-label="전체 프로젝트 현황">
+            <div class="pj-summary-head">
+                <h2 class="pj-summary-title">전체 프로젝트 현황</h2>
+                <span class="muted" id="sum-total"></span>
+            </div>
+            <div class="pj-kpis" id="sum-kpis"></div>
+            <div class="pj-summary-body">
+                <div class="pj-pipeline">
+                    <div class="pj-sub-title">상태별 분포 <span class="muted">· 클릭하면 목록이 필터링됩니다</span></div>
+                    <div class="pj-stack" id="sum-stack" role="group" aria-label="상태별 건수 분포"></div>
+                    <div class="pj-legend" id="sum-grid"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card data-card" aria-label="프로젝트 목록">
+            <div class="pj-list-head">
+            <div class="tabs" id="status-tabs" role="tablist" aria-label="진행상태"></div>
+            <div class="page-actions pj-list-actions">
                 <button type="button" class="btn-primary" id="btn-new">+ 프로젝트 등록</button>
                 <div class="menu-wrap">
                     <button type="button" class="btn-secondary btn-icon" id="btn-more" aria-label="더보기" aria-haspopup="true" aria-expanded="false">⋯</button>
@@ -25,10 +45,7 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <section class="card data-card" aria-label="프로젝트 목록">
-            <div class="tabs" id="status-tabs" role="tablist" aria-label="진행상태"></div>
+            </div>
             <div class="data-filters">
                 <label class="search-field">
                     <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -85,8 +102,17 @@
                     <label class="form-field span-2"><span>프로젝트명 *</span><input type="text" class="modal-input" id="p-name" maxlength="60" placeholder="예: 2026 유지보수 계약" required></label>
                     <label class="form-field"><span>거래처 *</span><input type="text" class="modal-input" id="p-partner" maxlength="40" list="partner-list" placeholder="예: (주)테크솔루션" required><datalist id="partner-list"></datalist></label>
                     <label class="form-field"><span>담당자</span><select class="modal-select" id="p-manager"></select></label>
+                    <div class="form-field span-2" id="p-biz"></div>
                     <label class="form-field"><span>수주일 *</span><input type="date" class="modal-input" id="p-order" required></label>
-                    <label class="form-field"><span>마감일</span><input type="date" class="modal-input" id="p-due"></label>
+                    <div class="form-field">
+                        <span>마감일</span>
+                        <input type="date" class="modal-input" id="p-due">
+                        <span class="due-tools">
+                            <button type="button" class="btn-secondary due-chip" id="p-due-plus5">수주+5영업일</button>
+                            <button type="button" class="btn-secondary due-chip" id="p-due-eom">월말 영업일</button>
+                        </span>
+                        <p class="due-hint" id="p-due-hint" hidden></p>
+                    </div>
                     <label class="form-field"><span>계약 금액 (원) *</span><input type="text" class="modal-input num-input" id="p-amount" inputmode="numeric" placeholder="0" required></label>
                     <label class="form-field"><span>진행상태</span><select class="modal-select" id="p-status"></select></label>
                     <label class="form-field"><span>진행률 (%)</span><input type="number" class="modal-input" id="p-progress" min="0" max="100" step="5" value="0"></label>
@@ -121,6 +147,19 @@
         </div>
     </div>
 
+    <!-- 마감 주의 목록 -->
+    <div class="modal-overlay" id="modal-attn" hidden>
+        <div class="modal form-modal" role="dialog" aria-modal="true" aria-labelledby="attn-title">
+            <div class="modal-header">
+                <h3 id="attn-title">마감 주의 <span class="muted" id="attn-count"></span></h3>
+                <button type="button" class="modal-close" data-close aria-label="닫기">&times;</button>
+            </div>
+            <div class="modal-body">
+                <ul class="pj-attn-list" id="sum-attn"></ul>
+            </div>
+        </div>
+    </div>
+
     <div class="app-toast" id="app-toast" role="status" aria-live="polite" hidden>
         <span id="app-toast-text"></span>
         <button type="button" class="app-toast-action" id="app-toast-action" hidden></button>
@@ -128,6 +167,7 @@
 
     <script src="../sync.js"></script>
     <script src="../members.js"></script>
+    <script src="../integrations.js"></script>
     <script src="../shell.js"></script>
     <script src="../ui-kit.js"></script>
     <script>
@@ -139,15 +179,16 @@
         var isManager = GW.isManager(me);
 
         var STATUS = {
-            pending: { label: "승인 대기", cls: "st-orange" },
-            progress: { label: "진행중", cls: "st-blue" },
-            delivery: { label: "납품 대기", cls: "st-violet" },
-            done: { label: "완료", cls: "st-green" },
+            pending: { label: "진행전", cls: "st-yellow" },
+            progress: { label: "진행중", cls: "st-green" },
+            delivery: { label: "검수", cls: "st-blue" },
+            billing: { label: "입금대기", cls: "st-violet" },
+            done: { label: "완료", cls: "st-dark" },
             cancel: { label: "취소", cls: "st-red" }
         };
-        var STATUS_ORDER = ["pending", "progress", "delivery", "done", "cancel"];
+        var STATUS_ORDER = ["pending", "progress", "delivery", "billing", "done", "cancel"];
         // 상세 화면의 '다음 단계' 버튼
-        var NEXT = { pending: "progress", progress: "delivery", delivery: "done" };
+        var NEXT = { pending: "progress", progress: "delivery", delivery: "billing", billing: "done" };
 
         // ---------- 데이터 (첫 방문 때만 예시 프로젝트 생성) ----------
         function seed() {
@@ -162,7 +203,7 @@
                 ["디지털인프라", "보안 점검 및 리포트", 9600000, "done", 100, -12, -2],
                 ["스마트시티코리아", "IoT 대시보드 구축", 48000000, "progress", 25, -15, 90],
                 ["(주)대한상사", "ERP 연동 API 개발", 12800000, "delivery", 90, -18, 3],
-                ["(주)이레산업", "생산관리 화면 리뉴얼", 8450000, "done", 100, -22, -6],
+                ["(주)이레산업", "생산관리 화면 리뉴얼", 8450000, "billing", 100, -22, -6],
                 ["(주)한빛전자", "사내 포털 고도화", 5800000, "cancel", 10, -25, 30],
                 ["(주)세종산업", "데이터 마이그레이션", 7200000, "progress", 55, -28, 14],
                 ["(주)코리아테크", "모바일 앱 MVP", 11400000, "pending", 0, -30, 60],
@@ -258,13 +299,95 @@
         }
         function dueCell(p) {
             if (!p.dueDate) return '<span class="muted">—</span>';
-            var late = p.dueDate < U.today() && (p.status === "progress" || p.status === "delivery" || p.status === "pending");
-            return '<span class="' + (late ? "st st-red" : "muted") + '"' + (late ? ' title="마감일이 지났습니다"' : "") + ">" + esc(p.dueDate) + "</span>";
+            var open = p.status === "progress" || p.status === "delivery" || p.status === "pending";
+            var late = open && GW.isLate(p.dueDate);
+            var name = GW.holidayName(p.dueDate);
+            var title = late ? "마감일이 지났습니다" : (name || (GW.isWeekend(p.dueDate) ? "주말" : ""));
+            return '<span class="' + (late ? "st st-red" : "muted") + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" + esc(p.dueDate) + (name ? " · " + esc(name) : "") + "</span>";
+        }
+        function partnerCell(p) {
+            return esc(p.partner) + GW.bizBadge(p.bizStatus, p.bizStatusName);
         }
         function progressBar(p) {
             return '<span class="progress"><span class="progress-track"><span class="progress-fill" style="width:' + p.progress + '%"></span></span><span class="progress-value">' + p.progress + "%</span></span>";
         }
+        // 현황 막대·범례: 오른쪽 끝 '취소'부터 진행 순서대로 왼쪽으로 배치
+        var SUM_ORDER = ["done", "billing", "delivery", "progress", "pending", "cancel"];
+        var SEG = { pending: "#d4a106", progress: "var(--success)", delivery: "var(--info)", billing: "#7c3aed", done: "#1f2937", cancel: "var(--danger)" };
+        function renderSummary() {
+            var total = list.length;
+            var sum = function (arr) { return arr.reduce(function (n, p) { return n + (p.amount || 0); }, 0); };
+            var by = function (k) { return list.filter(function (p) { return p.status === k; }); };
+            var open = list.filter(function (p) { return p.status === "pending" || p.status === "progress" || p.status === "delivery"; });
+            var running = by("progress").concat(by("delivery"));
+            var avg = running.length ? Math.round(running.reduce(function (n, p) { return n + (p.progress || 0); }, 0) / running.length) : 0;
+            var late = open.filter(function (p) { return p.dueDate && GW.isLate(p.dueDate); });
+            var limit = U.addDays(U.today(), 7);
+            var soon = open.filter(function (p) { return p.dueDate && !GW.isLate(p.dueDate) && p.dueDate <= limit; });
+            var attn = late.concat(soon);
+            var won = function (n) { return n >= 100000000 ? (Math.round(n / 1000000) / 100) + "억" : n >= 10000 ? U.won(Math.round(n / 10000)) + "만" : U.won(n); };
+            document.getElementById("sum-total").textContent = "기준일 " + U.today();
+
+            var kpi = function (label, value, sub, tone, tab) {
+                return '<' + (tab ? 'button type="button" ' + (tab === "attn" ? 'data-attn="1"' : 'data-tab="' + tab + '"') : 'div') + ' class="pj-kpi' + (tone ? " is-" + tone : "") + '">' +
+                    '<span class="pj-kpi-label">' + label + '</span><span class="pj-kpi-value">' + value + '</span><span class="pj-kpi-sub">' + sub + '</span></' + (tab ? "button" : "div") + '>';
+            };
+            document.getElementById("sum-kpis").innerHTML =
+                kpi("전체 프로젝트", total + "<small>건</small>", "취소 " + by("cancel").length + "건 포함", "", "all") +
+                kpi("진행 중", open.length + "<small>건</small>", "평균 진행률 " + avg + "%", "info") +
+                kpi("총 계약 금액", won(sum(list.filter(function (p) { return p.status !== "cancel"; }))) + "<small>원</small>", "완료 " + won(sum(by("done"))) + " · 입금대기 " + won(sum(by("billing"))) + "원", "") +
+                kpi("마감 주의", attn.length + "<small>건</small>", "초과 " + late.length + " · 7일 내 " + soon.length, attn.length ? "danger" : "good", "attn");
+
+            document.getElementById("sum-stack").innerHTML = total ? SUM_ORDER.map(function (k) {
+                var n = by(k).length;
+                return n ? '<button type="button" class="pj-seg" data-tab="' + k + '" style="flex:' + n + ';background:' + SEG[k] + '" title="' + esc(STATUS[k].label) + " " + n + '건"><span>' + n + "</span></button>" : "";
+            }).join("") : '<span class="pj-seg-empty">프로젝트가 없습니다</span>';
+            document.getElementById("sum-grid").innerHTML = SUM_ORDER.map(function (k) {
+                var rows = by(k);
+                return '<button type="button" class="pj-leg" data-tab="' + k + '"><span class="pj-dot" style="background:' + SEG[k] + '"></span>' +
+                    '<span class="pj-leg-name">' + esc(STATUS[k].label) + '</span><span class="pj-leg-n">' + rows.length + '건</span>' +
+                    '<span class="pj-leg-amt">' + won(sum(rows)) + '원</span></button>';
+            }).join("");
+
+            attn.sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : 1; });
+            document.getElementById("attn-count").textContent = attn.length ? "· " + attn.length + "건" : "";
+            document.getElementById("sum-attn").innerHTML = attn.length ? attn.map(function (p) {
+                var isLate = GW.isLate(p.dueDate);
+                var days = Math.round((new Date(p.dueDate) - new Date(U.today())) / 86400000);
+                return '<li><button type="button" class="pj-attn-item" data-open="' + p.id + '">' +
+                    '<span class="st ' + (isLate ? "st-red" : "st-orange") + '">' + (isLate ? "D+" + (-days) : days === 0 ? "D-day" : "D-" + days) + '</span>' +
+                    '<span class="pj-attn-name">' + esc(p.name) + '<small>' + esc(p.partner) + " · " + esc(p.manager || "담당자 없음") + '</small></span>' +
+                    '<span class="pj-attn-pct">' + p.progress + '%</span></button></li>';
+            }).join("") : '<li class="pj-attn-empty">마감이 지났거나 7일 내 임박한 프로젝트가 없습니다.</li>';
+        }
+        var attnModal = document.getElementById("modal-attn");
+        U.wireModal(attnModal);
+        document.getElementById("sum-attn").addEventListener("click", function (e) {
+            var b = e.target.closest("[data-open]");
+            if (!b) return;
+            U.closeModal(attnModal);
+            openDetail(b.getAttribute("data-open"));
+        });
+        document.getElementById("sum-kpis").addEventListener("click", function (e) {
+            if (e.target.closest("[data-attn]")) { U.openModal(attnModal); return; }
+            var b = e.target.closest("[data-tab]");
+            if (!b) return;
+            state.tab = b.getAttribute("data-tab"); state.page = 1; render();
+        });
+        document.getElementById("sum-stack").addEventListener("click", function (e) {
+            var b = e.target.closest("[data-tab]");
+            if (!b) return;
+            state.tab = b.getAttribute("data-tab"); state.page = 1; render();
+            document.getElementById("status-tabs").scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+        document.getElementById("sum-grid").addEventListener("click", function (e) {
+            var b = e.target.closest("[data-tab]");
+            if (!b) return;
+            state.tab = b.getAttribute("data-tab"); state.page = 1; render();
+            document.getElementById("status-tabs").scrollIntoView({ behavior: "smooth", block: "center" });
+        });
         function render() {
+            renderSummary();
             renderTabs();
             var rows = currentRows();
             var pages = Math.max(1, Math.ceil(rows.length / state.size));
@@ -280,7 +403,7 @@
                         '<td class="col-check"><input type="checkbox" class="row-check" data-id="' + p.id + '"' + (sel ? " checked" : "") + ' aria-label="' + esc(p.no) + ' 선택"></td>' +
                         '<td><button type="button" class="doc-link">' + esc(p.no) + "</button></td>" +
                         '<td class="muted">' + esc(p.orderDate) + "</td>" +
-                        '<td class="ellipsis">' + esc(p.partner) + "</td>" +
+                        '<td class="ellipsis">' + partnerCell(p) + "</td>" +
                         '<td class="ellipsis" title="' + esc(p.name) + '">' + esc(p.name) + "</td>" +
                         "<td>" + dueCell(p) + "</td>" +
                         "<td>" + progressBar(p) + "</td>" +
@@ -363,7 +486,7 @@
             var before = targets.map(function (p) { return JSON.parse(JSON.stringify(p)); });
             targets.forEach(function (p) {
                 p.status = status;
-                if (status === "done") p.progress = 100;
+                if (status === "done" || status === "billing") p.progress = 100;
                 log(p, "상태 변경 → " + STATUS[status].label);
             });
             save();
@@ -406,7 +529,41 @@
             status: document.getElementById("p-status"), progress: document.getElementById("p-progress"), memo: document.getElementById("p-memo")
         };
         var formError = document.getElementById("form-error");
+        var dueHint = document.getElementById("p-due-hint");
         var editingId = null;
+        var biz = GW.mountBiz({
+            mount: document.getElementById("p-biz"),
+            nameInput: F.partner,
+            peers: function () {
+                return list.filter(function (x) { return x.id !== editingId && x.bizNo; }).map(function (x) { return { name: x.partner, bizNo: x.bizNo }; });
+            }
+        });
+        function refreshDueHint() {
+            var due = F.due.value;
+            if (!due || !GW.isOff(due)) { dueHint.hidden = true; dueHint.textContent = ""; return; }
+            var prev = GW.previousBusinessDay(due);
+            var name = GW.holidayName(due) || "주말";
+            dueHint.hidden = false;
+            dueHint.innerHTML = esc(name) + "입니다. 이전 영업일은 " + esc(prev) + "입니다. " +
+                '<button type="button" class="btn-secondary due-chip" id="p-due-prev">이전 영업일로</button>';
+            document.getElementById("p-due-prev").addEventListener("click", function () {
+                F.due.value = prev;
+                refreshDueHint();
+            });
+        }
+        F.due.addEventListener("change", refreshDueHint);
+        document.getElementById("p-due-plus5").addEventListener("click", function () {
+            if (!F.order.value) { formError.textContent = "수주일을 먼저 입력하세요."; formError.hidden = false; return; }
+            F.due.value = GW.addBusinessDays(F.order.value, 5);
+            formError.hidden = true;
+            refreshDueHint();
+        });
+        document.getElementById("p-due-eom").addEventListener("click", function () {
+            var base = F.order.value || U.today();
+            F.due.value = GW.monthEndBusinessDay(base);
+            formError.hidden = true;
+            refreshDueHint();
+        });
         U.wireModal(formModal);
         U.bindAmountInput(F.amount);
         F.status.innerHTML = STATUS_ORDER.map(function (k) { return '<option value="' + k + '">' + STATUS[k].label + "</option>"; }).join("");
@@ -426,6 +583,8 @@
             F.status.value = p ? p.status : "pending";
             F.progress.value = p ? p.progress : 0;
             F.memo.value = p ? p.memo || "" : "";
+            if (biz) biz.fill(p);
+            refreshDueHint();
             formError.hidden = true;
             var partners = {};
             list.forEach(function (x) { partners[x.partner] = true; });
@@ -443,24 +602,31 @@
                 formError.hidden = false;
                 return;
             }
-            var progress = Math.min(100, Math.max(0, parseInt(F.progress.value, 10) || 0));
-            var data = { name: name, partner: partner, manager: F.manager.value, orderDate: F.order.value, dueDate: F.due.value, amount: amount, status: F.status.value, progress: F.status.value === "done" ? 100 : progress, memo: F.memo.value.trim() };
-            if (editingId) {
-                var p = byId(editingId);
-                Object.assign(p, data);
-                log(p, "수정");
-                U.toast(p.no + " 프로젝트를 수정했습니다.");
-            } else {
-                var created = Object.assign({ id: "p" + Date.now().toString(36), no: nextNumber(data.orderDate), createdAt: Date.now(), history: [] }, data);
-                log(created, "등록");
-                list.push(created);
-                state.tab = "all";
-                U.toast(created.no + " 프로젝트를 등록했습니다.");
-            }
-            save();
-            renderFilterOptions();
-            U.closeModal(formModal);
-            render();
+            var submitBtn = document.getElementById("form-submit");
+            submitBtn.disabled = true;
+            biz.confirm(function (rec) {
+                submitBtn.disabled = false;
+                if (rec === false) return;
+                var progress = Math.min(100, Math.max(0, parseInt(F.progress.value, 10) || 0));
+                var data = { name: name, partner: F.partner.value.trim(), manager: F.manager.value, orderDate: F.order.value, dueDate: F.due.value, amount: amount, status: F.status.value, progress: F.status.value === "done" || F.status.value === "billing" ? 100 : progress, memo: F.memo.value.trim() };
+                GW.applyBiz(data, rec);
+                if (editingId) {
+                    var p = byId(editingId);
+                    Object.assign(p, data);
+                    log(p, "수정");
+                    U.toast(p.no + " 프로젝트를 수정했습니다.");
+                } else {
+                    var created = Object.assign({ id: "p" + Date.now().toString(36), no: nextNumber(data.orderDate), createdAt: Date.now(), history: [] }, data);
+                    log(created, "등록");
+                    list.push(created);
+                    state.tab = "all";
+                    U.toast(created.no + " 프로젝트를 등록했습니다.");
+                }
+                save();
+                renderFilterOptions();
+                U.closeModal(formModal);
+                render();
+            });
         });
 
         // ---------- 상세 ----------
@@ -473,7 +639,8 @@
             detailId = id;
             document.getElementById("detail-title").textContent = "프로젝트 상세 · " + p.no;
             var fields = [
-                ["프로젝트명", esc(p.name)], ["거래처", esc(p.partner)], ["담당자", esc(p.manager || "—")],
+                ["프로젝트명", esc(p.name)], ["거래처", partnerCell(p)], ["담당자", esc(p.manager || "—")],
+                ["사업자번호", p.bizNo ? esc(p.bizNo.replace(/(\d{3})(\d{2})(\d{5})/, "$1-$2-$3")) + (p.bizTaxType ? " · " + esc(p.bizTaxType) : "") : "—"],
                 ["수주일", esc(p.orderDate)], ["마감일", dueCell(p)], ["계약 금액", U.won(p.amount) + "원"],
                 ["진행상태", '<span class="st ' + STATUS[p.status].cls + '">' + STATUS[p.status].label + "</span>"],
                 ["진행률", progressBar(p)],
@@ -504,11 +671,12 @@
             var rows = currentRows();
             if (!rows.length) { U.toast("내보낼 프로젝트가 없습니다."); return; }
             U.downloadCsv("프로젝트목록_" + U.today() + ".csv",
-                ["프로젝트번호", "수주일", "거래처", "프로젝트명", "마감일", "진행률", "금액", "진행상태", "담당자", "메모"],
-                rows.map(function (p) { return [p.no, p.orderDate, p.partner, p.name, p.dueDate, p.progress + "%", p.amount, STATUS[p.status].label, p.manager, p.memo]; }));
+                ["프로젝트번호", "수주일", "거래처", "사업자번호", "사업자상태", "프로젝트명", "마감일", "진행률", "금액", "진행상태", "담당자", "메모"],
+                rows.map(function (p) { return [p.no, p.orderDate, p.partner, p.bizNo || "", p.bizStatusName || "", p.name, p.dueDate, p.progress + "%", p.amount, STATUS[p.status].label, p.manager, p.memo]; }));
         });
 
         renderFilterOptions();
+        document.addEventListener("gw-holidays", render);
         var q = new URLSearchParams(location.search).get("q");
         if (q) {
             fSearch.value = q;

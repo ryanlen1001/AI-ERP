@@ -128,7 +128,7 @@
     return '<header class="topbar">' +
       '<button type="button" class="icon-btn topbar-menu" id="btn-side-toggle" aria-label="메뉴 열기">' + icon("menu") + "</button>" +
       '<button type="button" class="topbar-search" id="btn-palette">' + icon("search", "icon-sm") +
-      '<span>메뉴, 프로젝트, 전표, 할 일을 검색하세요…</span><kbd>⌘K</kbd></button>' +
+      '<span>메뉴, 프로젝트, 전표, 할 일을 검색하세요…</span><kbd>⌘K</kbd><kbd>Ctrl+K</kbd></button>' +
       '<div class="topbar-actions">' +
       '<div class="popover-wrap"><button type="button" class="icon-btn" id="btn-notify" aria-label="알림" aria-haspopup="true" aria-expanded="false">' + icon("bell") +
       '<span class="dot-badge" id="notify-badge" hidden></span></button>' +
@@ -146,6 +146,49 @@
     '<div class="side-scrim" id="side-scrim" hidden></div>';
   document.body.insertBefore(layout, document.body.firstChild);
   if (content) layout.querySelector("#layout-content").appendChild(content);
+  if (GW.isMaster() && GW.saveIntegrationKey) {
+    var setup = document.createElement("div");
+    setup.className = "integration-setup";
+    setup.hidden = true;
+    setup.innerHTML =
+      '<div class="integration-setup-text"><strong>공공데이터 인증키</strong>' +
+      "<span>디코딩 키를 한 번만 저장합니다. 이후 사업자 조회와 공휴일은 서버에 저장된 키로 자동 호출됩니다.</span></div>" +
+      '<form class="integration-setup-form">' +
+      '<input type="password" class="modal-input" name="key" placeholder="공공데이터포털 디코딩 키" autocomplete="off" aria-label="공공데이터포털 디코딩 키">' +
+      '<button type="submit" class="btn-primary">저장</button>' +
+      '<p class="integration-setup-error" hidden></p></form>';
+    layout.querySelector(".layout-main").insertBefore(setup, layout.querySelector("#layout-content"));
+    var setupError = setup.querySelector(".integration-setup-error");
+    function syncSetup() {
+      var meta = GW.holidayMeta ? GW.holidayMeta() : {};
+      setup.hidden = meta.configured !== false;
+    }
+    setup.querySelector("form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var key = setup.querySelector("input").value.trim();
+      setupError.hidden = true;
+      if (!key) { setupError.textContent = "인증키를 입력하세요."; setupError.hidden = false; return; }
+      var button = setup.querySelector("button");
+      button.disabled = true;
+      GW.saveIntegrationKey(key).then(function (saved) {
+        button.disabled = false;
+        if (!saved.ok) {
+          setupError.textContent = (saved.data && saved.data.error) || "키를 저장하지 못했습니다.";
+          setupError.hidden = false;
+          return;
+        }
+        setup.hidden = true;
+        notice("인증키를 저장했습니다. 이제 조회와 공휴일은 자동으로 이 키를 사용합니다.");
+      }).catch(function () {
+        button.disabled = false;
+        setupError.textContent = "서버에 연결할 수 없습니다.";
+        setupError.hidden = false;
+      });
+    });
+    document.addEventListener("gw-integrations", syncSetup);
+    document.addEventListener("gw-holidays", syncSetup);
+    syncSetup();
+  }
   var sideBottom = document.querySelector("[data-shell-side-bottom]");
   if (sideBottom) layout.querySelector("#side-bottom").appendChild(sideBottom);
   else layout.querySelector("#side-bottom").remove();
@@ -340,17 +383,49 @@
     var d = new Date();
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
-  function collectNotifications() {
+  function dueNotice(due) {
+    if (window.GW && typeof GW.dueState === "function") return GW.dueState(due);
     var t = todayIso();
+    if (due && due < t) return "overdue";
+    if (due === t) return "today";
+    return "";
+  }
+  function collectClosedPartners() {
+    var found = {};
+    function take(rows, href, ok) {
+      (rows || []).forEach(function (row) {
+        if (row.bizStatus !== "02" && row.bizStatus !== "03") return;
+        if (ok && !ok(row)) return;
+        var key = row.bizNo || row.partner || row.vendor || "";
+        if (!key || found[key]) return;
+        found[key] = { name: row.partner || row.vendor || "거래처", status: row.bizStatusName || "휴·폐업", href: href };
+      });
+    }
+    if (GW.canAccess("sales")) take(readJSON("ai-groupware-projects", []), "sales/sales.html", function (p) { return p.status !== "done" && p.status !== "cancel"; });
+    if (GW.canAccess("receipt")) take(readJSON("ai-groupware-receipts", []), "receipt/receipt.html", function (v) { return v.status !== "rejected"; });
+    if (GW.canAccess("cost")) {
+      var cost = readJSON("ai-groupware-cost-v1", null);
+      take(cost && cost.expenses, "cost/cost.html");
+    }
+    return Object.keys(found).map(function (key) { return found[key]; });
+  }
+  function collectNotifications() {
     var out = [];
     var todos = readJSON("ai-groupware-todos", []) || [];
     var works = readJSON("ai-groupware-work-instructions", []) || [];
     var open = todos.filter(function (x) { return !x.done; }).map(function (x) { return { text: x.text, due: x.dueDate, kind: "할 일" }; })
       .concat(works.filter(function (x) { return !x.done; }).map(function (x) { return { text: x.text, due: x.dueDate, kind: "업무", urgent: x.type === "urgent" }; }));
     open.forEach(function (x) {
-      if (x.due && x.due < t) out.push({ tone: "danger", icon: "alert", title: "기한 지남 · " + x.kind, text: x.text, href: "index.html" });
-      else if (x.due === t) out.push({ tone: "warning", icon: "clock", title: "오늘 마감 · " + x.kind, text: x.text, href: "index.html" });
-      else if (x.urgent) out.push({ tone: "info", icon: "alert", title: "긴급 업무", text: x.text, href: "index.html" });
+      var state = x.due ? dueNotice(x.due) : "";
+      if (state === "overdue") out.push({ tone: "danger", icon: "alert", title: "기한 지남 · " + x.kind, text: x.text, href: "index.html" });
+      else if (state === "today") out.push({ tone: "warning", icon: "clock", title: "오늘 마감 · " + x.kind, text: x.text, href: "index.html" });
+      else if (state === "eve") {
+        var name = GW.holidayName(x.due) || "휴무";
+        out.push({ tone: "warning", icon: "clock", title: "휴무 전 마감 · " + x.kind, text: x.text + " · " + name, href: "index.html" });
+      } else if (x.urgent) out.push({ tone: "info", icon: "alert", title: "긴급 업무", text: x.text, href: "index.html" });
+    });
+    collectClosedPartners().slice(0, 3).forEach(function (p) {
+      out.push({ tone: "danger", icon: "alert", title: p.status + " 거래처", text: p.name, href: p.href });
     });
     if (GW.canAccess("cost", me)) {
       var cost = readJSON("ai-groupware-cost-v1", null);
@@ -391,6 +466,7 @@
   renderNotifications();
   // 다른 화면에서 데이터가 바뀌면(같은 브라우저의 다른 탭) 알림 갱신
   window.addEventListener("storage", renderNotifications);
+  document.addEventListener("gw-holidays", renderNotifications);
   window.GWShell = { refreshNotifications: renderNotifications, icon: icon };
 
   // ---------- 통합 검색 (⌘K / Ctrl+K) ----------

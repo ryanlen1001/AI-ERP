@@ -95,6 +95,7 @@
                     </label>
                     <label class="form-field"><span>계정과목</span><select class="modal-select" id="v-account"></select></label>
                     <label class="form-field"><span>거래처</span><input type="text" class="modal-input" id="v-partner" maxlength="40" list="partner-list" placeholder="예: (주)대한상사"><datalist id="partner-list"></datalist></label>
+                    <div class="form-field span-2" id="v-biz"></div>
                     <label class="form-field span-2"><span>적요 *</span><input type="text" class="modal-input" id="v-summary" maxlength="60" placeholder="예: 사무용품 구입" required></label>
                     <label class="form-field"><span>금액 (원) *</span><input type="text" class="modal-input num-input" id="v-amount" inputmode="numeric" placeholder="0" required></label>
                     <label class="form-field"><span>작성자</span><input type="text" class="modal-input" id="v-writer" readonly></label>
@@ -137,6 +138,7 @@
 
     <script src="../sync.js"></script>
     <script src="../members.js"></script>
+    <script src="../integrations.js"></script>
     <script src="../shell.js"></script>
     <script src="../ui-kit.js"></script>
     <script>
@@ -286,7 +288,7 @@
                         '<td class="muted">' + esc(v.date) + "</td>" +
                         '<td><span class="st ' + KINDS[v.kind].cls + '">' + KINDS[v.kind].label + "</span></td>" +
                         '<td class="ellipsis" title="' + esc(v.summary) + '">' + esc(v.summary) + "</td>" +
-                        '<td class="ellipsis muted">' + esc(v.partner || "—") + "</td>" +
+                        '<td class="ellipsis muted">' + esc(v.partner || "—") + GW.bizBadge(v.bizStatus, v.bizStatusName) + "</td>" +
                         '<td class="num">' + U.won(v.amount) + "</td>" +
                         '<td><span class="st ' + STATUS[v.status].cls + '">' + STATUS[v.status].label + "</span></td>" +
                         '<td class="muted">' + esc(v.writer || "—") + "</td></tr>";
@@ -420,6 +422,13 @@
         var vPartner = document.getElementById("v-partner"), vSummary = document.getElementById("v-summary"), vAmount = document.getElementById("v-amount");
         var vMemo = document.getElementById("v-memo"), formError = document.getElementById("form-error");
         var editingId = null;
+        var biz = GW.mountBiz({
+            mount: document.getElementById("v-biz"),
+            nameInput: vPartner,
+            peers: function () {
+                return list.filter(function (x) { return x.id !== editingId && x.bizNo; }).map(function (x) { return { name: x.partner, bizNo: x.bizNo }; });
+            }
+        });
         U.wireModal(formModal);
         U.bindAmountInput(vAmount);
         function fillAccounts(kind, value) {
@@ -435,6 +444,7 @@
             vKind.value = v ? v.kind : "general";
             fillAccounts(vKind.value, v && v.account);
             vPartner.value = v ? v.partner || "" : "";
+            if (biz) biz.fill(v);
             vSummary.value = v ? v.summary : "";
             vAmount.value = v ? v.amount.toLocaleString("ko-KR") : "";
             vMemo.value = v ? v.memo || "" : "";
@@ -457,26 +467,32 @@
                 (!vDate.value ? vDate : !summary ? vSummary : vAmount).focus();
                 return;
             }
-            var data = { date: vDate.value, kind: vKind.value, account: vAccount.value, partner: vPartner.value.trim(), summary: summary, amount: amount, memo: vMemo.value.trim() };
-            if (editingId) {
-                var v = byId(editingId);
-                Object.assign(v, data);
-                log(v, "수정");
-                U.toast(v.no + " 전표를 수정했습니다.");
-            } else {
-                var created = Object.assign({ id: "v" + Date.now().toString(36), no: nextNumber(data.date), status: "pending", writer: me.name, createdAt: Date.now(), history: [] }, data);
-                log(created, "등록");
-                list.push(created);
-                U.toast(created.no + " 전표를 등록했습니다. 마스터·관리자의 승인을 기다립니다.");
-                // 새 전표가 보이도록 기간·탭 조정
-                if (fFrom.value && created.date < fFrom.value) fFrom.value = created.date;
-                if (fTo.value && created.date > fTo.value) fTo.value = created.date;
-                state.tab = "all";
-            }
-            save();
-            renderWriterOptions();
-            U.closeModal(formModal);
-            render();
+            var submitBtn = document.getElementById("form-submit");
+            submitBtn.disabled = true;
+            biz.confirm(function (rec) {
+                submitBtn.disabled = false;
+                if (rec === false) return;
+                var data = { date: vDate.value, kind: vKind.value, account: vAccount.value, partner: vPartner.value.trim(), summary: summary, amount: amount, memo: vMemo.value.trim() };
+                GW.applyBiz(data, rec);
+                if (editingId) {
+                    var v = byId(editingId);
+                    Object.assign(v, data);
+                    log(v, "수정");
+                    U.toast(v.no + " 전표를 수정했습니다.");
+                } else {
+                    var created = Object.assign({ id: "v" + Date.now().toString(36), no: nextNumber(data.date), status: "pending", writer: me.name, createdAt: Date.now(), history: [] }, data);
+                    log(created, "등록");
+                    list.push(created);
+                    U.toast(created.no + " 전표를 등록했습니다. 마스터·관리자의 승인을 기다립니다.");
+                    if (fFrom.value && created.date < fFrom.value) fFrom.value = created.date;
+                    if (fTo.value && created.date > fTo.value) fTo.value = created.date;
+                    state.tab = "all";
+                }
+                save();
+                renderWriterOptions();
+                U.closeModal(formModal);
+                render();
+            });
         });
 
         // ---------- 상세 ----------
@@ -491,7 +507,8 @@
             var fields = [
                 ["전표번호", v.no], ["전표일", v.date],
                 ["구분", '<span class="st ' + KINDS[v.kind].cls + '">' + KINDS[v.kind].label + "</span>"],
-                ["계정과목", esc(v.account || "—")], ["거래처", esc(v.partner || "—")], ["적요", esc(v.summary)],
+                ["계정과목", esc(v.account || "—")], ["거래처", esc(v.partner || "—") + GW.bizBadge(v.bizStatus, v.bizStatusName)], ["적요", esc(v.summary)],
+                ["사업자번호", v.bizNo ? esc(String(v.bizNo).replace(/(\d{3})(\d{2})(\d{5})/, "$1-$2-$3")) + (v.bizTaxType ? " · " + esc(v.bizTaxType) : "") : "—"],
                 ["금액", U.won(v.amount) + "원"], ["상태", '<span class="st ' + STATUS[v.status].cls + '">' + STATUS[v.status].label + "</span>"],
                 ["작성자", esc(v.writer)], ["메모", esc(v.memo || "—")]
             ];
@@ -517,8 +534,8 @@
             var rows = currentRows();
             if (!rows.length) { U.toast("내보낼 전표가 없습니다."); return; }
             U.downloadCsv("전표목록_" + U.today() + ".csv",
-                ["전표번호", "전표일", "구분", "계정과목", "거래처", "적요", "금액", "상태", "작성자", "메모"],
-                rows.map(function (v) { return [v.no, v.date, KINDS[v.kind].label, v.account, v.partner, v.summary, v.amount, STATUS[v.status].label, v.writer, v.memo]; }));
+                ["전표번호", "전표일", "구분", "계정과목", "거래처", "사업자번호", "사업자상태", "적요", "금액", "상태", "작성자", "메모"],
+                rows.map(function (v) { return [v.no, v.date, KINDS[v.kind].label, v.account, v.partner, v.bizNo || "", v.bizStatusName || "", v.summary, v.amount, STATUS[v.status].label, v.writer, v.memo]; }));
         });
 
         resetFilters();

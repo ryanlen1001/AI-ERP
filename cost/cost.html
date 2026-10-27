@@ -285,6 +285,7 @@
                                 <datalist id="vendor-list"></datalist>
                             </label>
                         </div>
+                        <div class="cost-field" id="f-biz"></div>
                         <div class="cost-form-row">
                             <label class="cost-field">
                                 <span>결제수단</span>
@@ -402,6 +403,7 @@
 
     <script src="../sync.js"></script>
     <script src="../members.js"></script>
+    <script src="../integrations.js"></script>
     <script src="../shell.js"></script>
     <script>
     (function () {
@@ -666,6 +668,13 @@
         var fItem = document.getElementById("f-item");
         var fCategory = document.getElementById("f-category");
         var fVendor = document.getElementById("f-vendor");
+        var biz = GW.mountBiz({
+            mount: document.getElementById("f-biz"),
+            nameInput: fVendor,
+            peers: function () {
+                return state.expenses.filter(function (x) { return x.id !== editingId && x.bizNo; }).map(function (x) { return { name: x.vendor, bizNo: x.bizNo }; });
+            }
+        });
         var fMethod = document.getElementById("f-method");
         var fEvidence = document.getElementById("f-evidence");
         var fMemo = document.getElementById("f-memo");
@@ -750,46 +759,52 @@
             var item = fItem.value.trim();
             if (!amount) { fAmount.focus(); showToast("금액을 입력하세요."); return; }
             if (!item) { fItem.focus(); return; }
-            var data = {
-                date: fDate.value || todayIso(),
-                amount: amount,
-                item: item,
-                category: fCategory.value,
-                vendor: fVendor.value.trim(),
-                method: fMethod.value,
-                evidence: fEvidence.value,
-                kind: fKind.value,
-                memo: fMemo.value.trim()
-            };
-            if (editingId) {
-                var target = state.expenses.filter(function (x) { return x.id === editingId; })[0];
-                if (target) {
-                    Object.assign(target, data);
-                    if (data.method !== "personal") target.settled = false;
-                }
-                showToast("수정했습니다.");
-                closeExpense();
-            } else {
-                data.id = uid("exp");
-                data.settled = false;
-                data.createdAt = Date.now();
-                if (planLink) data.planId = planLink.id;
-                state.expenses.push(data);
-                showToast(data.item + " " + won(amount) + " 추가됨" + (planLink ? " · 산정표 집행 반영" : ""));
-                if (planLink || !more) {
+            fSubmit.disabled = true;
+            biz.confirm(function (rec) {
+                fSubmit.disabled = false;
+                if (rec === false) return;
+                var data = {
+                    date: fDate.value || todayIso(),
+                    amount: amount,
+                    item: item,
+                    category: fCategory.value,
+                    vendor: fVendor.value.trim(),
+                    method: fMethod.value,
+                    evidence: fEvidence.value,
+                    kind: fKind.value,
+                    memo: fMemo.value.trim()
+                };
+                GW.applyBiz(data, rec);
+                if (editingId) {
+                    var target = state.expenses.filter(function (x) { return x.id === editingId; })[0];
+                    if (target) {
+                        Object.assign(target, data);
+                        if (data.method !== "personal") target.settled = false;
+                    }
+                    showToast("수정했습니다.");
                     closeExpense();
                 } else {
-                    // 연속 입력을 위해 날짜·분류·결제수단은 유지
-                    fAmount.value = "";
-                    fItem.value = "";
-                    fVendor.value = "";
-                    fMemo.value = "";
-                    fItem.focus();
-                    updateFormHint();
+                    data.id = uid("exp");
+                    data.settled = false;
+                    data.createdAt = Date.now();
+                    if (planLink) data.planId = planLink.id;
+                    state.expenses.push(data);
+                    showToast(data.item + " " + won(amount) + " 추가됨" + (planLink ? " · 산정표 집행 반영" : ""));
+                    if (planLink || !more) {
+                        closeExpense();
+                    } else {
+                        fAmount.value = "";
+                        fItem.value = "";
+                        fVendor.value = "";
+                        fMemo.value = "";
+                        if (biz) biz.fill(null);
+                        fItem.focus();
+                        updateFormHint();
+                    }
                 }
-            }
-            save();
-            render();
+                save();
+                render();
+            });
         });
 
         function startEdit(id) {
@@ -801,6 +816,7 @@
             fItem.value = e.item;
             fCategory.value = e.category;
             fVendor.value = e.vendor || "";
+            if (biz) biz.fill(e);
             fMethod.value = e.method;
             fEvidence.value = e.evidence;
             fKind.value = kindOf(e);
@@ -820,6 +836,7 @@
             fItem.value = "";
             fVendor.value = "";
             fMemo.value = "";
+            if (biz) biz.fill(null);
             fSubmit.textContent = "추가";
             fMore.hidden = false;
             document.getElementById("cost-form-title").textContent = "지출 입력";
@@ -1662,7 +1679,7 @@
                     '<td><span class="cost-cat-tag">' + escapeHtml(labelOf(CATEGORIES, e.category)) + "</span>" +
                     (kind !== "op" ? ' <span class="cost-kind-tag is-' + kind + '">' + KIND_SHORT[kind] + "</span>" : "") + "</td>" +
                     '<td class="cost-td-item"><span>' + escapeHtml(e.item) + "</span>" +
-                    (e.vendor || e.memo ? "<small>" + escapeHtml([e.vendor, e.memo].filter(Boolean).join(" · ")) + "</small>" : "") + "</td>" +
+                    (e.vendor || e.memo || e.bizStatus ? "<small>" + escapeHtml([e.vendor, e.memo].filter(Boolean).join(" · ")) + GW.bizBadge(e.bizStatus, e.bizStatusName) + "</small>" : "") + "</td>" +
                     "<td>" + methodHtml + "</td>" +
                     '<td><span class="cost-ev ' + evClass + '">' + escapeHtml(labelOf(EVIDENCES, e.evidence)) + "</span></td>" +
                     '<td class="num">' + won(e.amount) + "</td>" +
@@ -1747,9 +1764,9 @@
         document.getElementById("cost-export-csv").addEventListener("click", function () {
             var list = filteredExpenses();
             if (!list.length) { showToast("내보낼 지출이 없습니다."); return; }
-            var header = ["날짜", "분류", "성격", "내용", "거래처", "결제수단", "정산", "증빙", "금액", "공제예상부가세", "메모"];
+            var header = ["날짜", "분류", "성격", "내용", "거래처", "사업자번호", "사업자상태", "결제수단", "정산", "증빙", "금액", "공제예상부가세", "메모"];
             var rows = list.map(function (e) {
-                return [e.date, labelOf(CATEGORIES, e.category), KIND_SHORT[kindOf(e)], e.item, e.vendor, labelOf(METHODS, e.method),
+                return [e.date, labelOf(CATEGORIES, e.category), KIND_SHORT[kindOf(e)], e.item, e.vendor, e.bizNo || "", e.bizStatusName || "", labelOf(METHODS, e.method),
                     e.method === "personal" ? (e.settled ? "정산완료" : "미정산") : "",
                     labelOf(EVIDENCES, e.evidence), e.amount, vatEstimate(e), e.memo].map(csvCell).join(",");
             });

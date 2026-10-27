@@ -86,7 +86,7 @@
       bar.setAttribute("role", "status");
       bar.style.cssText = "position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:99999;" +
         "display:flex;gap:12px;align-items:center;padding:10px 16px;border-radius:10px;" +
-        "background:#1f2937;color:#fff;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);";
+        "background:#1f2937;color:#fff;font-size:12.6px;box-shadow:0 6px 20px rgba(0,0,0,.25);";
       document.body.appendChild(bar);
     }
     bar.textContent = message;
