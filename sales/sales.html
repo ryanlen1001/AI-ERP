@@ -24,10 +24,9 @@
                 <span class="muted" id="sum-total"></span>
             </div>
             <div class="pj-kpis" id="sum-kpis"></div>
-            <div class="pj-summary-body">
+            <div class="pj-summary-body" id="sum-body" hidden>
                 <div class="pj-pipeline">
-                    <div class="pj-sub-title">상태별 분포 <span class="muted">· 클릭하면 목록이 필터링됩니다</span></div>
-                    <div class="pj-stack" id="sum-stack" role="group" aria-label="상태별 건수 분포"></div>
+                    <div class="pj-sub-title">상태별 현황 <span class="muted" id="sum-mode"></span></div>
                     <div class="pj-legend" id="sum-grid"></div>
                 </div>
             </div>
@@ -314,13 +313,14 @@
         // 현황 막대·범례: 오른쪽 끝 '취소'부터 진행 순서대로 왼쪽으로 배치
         var SUM_ORDER = ["done", "billing", "delivery", "progress", "pending", "cancel"];
         var SEG = { pending: "#d4a106", progress: "var(--success)", delivery: "var(--info)", billing: "#7c3aed", done: "#1f2937", cancel: "var(--danger)" };
+        var breakdown = ""; // "", "count", "amount"
         function renderSummary() {
+            document.getElementById("sum-body").hidden = !breakdown;
+            document.getElementById("sum-mode").textContent = "· " + (breakdown === "amount" ? "금액" : "건수") + " 기준 · 클릭하면 목록이 필터링됩니다";
             var total = list.length;
             var sum = function (arr) { return arr.reduce(function (n, p) { return n + (p.amount || 0); }, 0); };
             var by = function (k) { return list.filter(function (p) { return p.status === k; }); };
             var open = list.filter(function (p) { return p.status === "pending" || p.status === "progress" || p.status === "delivery"; });
-            var running = by("progress").concat(by("delivery"));
-            var avg = running.length ? Math.round(running.reduce(function (n, p) { return n + (p.progress || 0); }, 0) / running.length) : 0;
             var late = open.filter(function (p) { return p.dueDate && GW.isLate(p.dueDate); });
             var limit = U.addDays(U.today(), 7);
             var soon = open.filter(function (p) { return p.dueDate && !GW.isLate(p.dueDate) && p.dueDate <= limit; });
@@ -329,24 +329,18 @@
             document.getElementById("sum-total").textContent = "기준일 " + U.today();
 
             var kpi = function (label, value, sub, tone, tab) {
-                return '<' + (tab ? 'button type="button" ' + (tab === "attn" ? 'data-attn="1"' : 'data-tab="' + tab + '"') : 'div') + ' class="pj-kpi' + (tone ? " is-" + tone : "") + '">' +
+                return '<' + (tab ? 'button type="button" ' + (tab === "attn" ? 'data-attn="1"' : tab === "count" || tab === "amount" ? 'data-toggle="' + tab + '" aria-expanded="' + (breakdown === tab) + '"' : 'data-tab="' + tab + '"') : 'div') + ' class="pj-kpi' + (tone ? " is-" + tone : "") + '">' +
                     '<span class="pj-kpi-label">' + label + '</span><span class="pj-kpi-value">' + value + '</span><span class="pj-kpi-sub">' + sub + '</span></' + (tab ? "button" : "div") + '>';
             };
             document.getElementById("sum-kpis").innerHTML =
-                kpi("전체 프로젝트", total + "<small>건</small>", "취소 " + by("cancel").length + "건 포함", "", "all") +
-                kpi("진행 중", open.length + "<small>건</small>", "평균 진행률 " + avg + "%", "info") +
-                kpi("총 계약 금액", won(sum(list.filter(function (p) { return p.status !== "cancel"; }))) + "<small>원</small>", "완료 " + won(sum(by("done"))) + " · 입금대기 " + won(sum(by("billing"))) + "원", "") +
+                kpi("전체 프로젝트", total + "<small>건</small>", "취소 " + by("cancel").length + "건 포함 · " + (breakdown === "count" ? "접기 ▴" : "상태별 건수 ▾"), "", "count") +
+                kpi("총 계약 금액", won(sum(list.filter(function (p) { return p.status !== "cancel"; }))) + "<small>원</small>", "취소 제외 · " + (breakdown === "amount" ? "접기 ▴" : "상태별 금액 ▾"), "", "amount") +
                 kpi("마감 주의", attn.length + "<small>건</small>", "초과 " + late.length + " · 7일 내 " + soon.length, attn.length ? "danger" : "good", "attn");
 
-            document.getElementById("sum-stack").innerHTML = total ? SUM_ORDER.map(function (k) {
-                var n = by(k).length;
-                return n ? '<button type="button" class="pj-seg" data-tab="' + k + '" style="flex:' + n + ';background:' + SEG[k] + '" title="' + esc(STATUS[k].label) + " " + n + '건"><span>' + n + "</span></button>" : "";
-            }).join("") : '<span class="pj-seg-empty">프로젝트가 없습니다</span>';
             document.getElementById("sum-grid").innerHTML = SUM_ORDER.map(function (k) {
                 var rows = by(k);
-                return '<button type="button" class="pj-leg" data-tab="' + k + '"><span class="pj-dot" style="background:' + SEG[k] + '"></span>' +
-                    '<span class="pj-leg-name">' + esc(STATUS[k].label) + '</span><span class="pj-leg-n">' + rows.length + '건</span>' +
-                    '<span class="pj-leg-amt">' + won(sum(rows)) + '원</span></button>';
+                return '<button type="button" class="pj-leg' + (state.tab === k ? " is-active" : "") + '" data-tab="' + k + '" style="--c:' + SEG[k] + '"><span class="pj-dot"></span>' +
+                    '<span class="pj-leg-name">' + esc(STATUS[k].label) + '</span><span class="pj-leg-n">' + (breakdown === "amount" ? won(sum(rows)) + '<small>원</small>' : rows.length + '<small>건</small>') + '</span></button>';
             }).join("");
 
             attn.sort(function (a, b) { return a.dueDate < b.dueDate ? -1 : 1; });
@@ -370,15 +364,11 @@
         });
         document.getElementById("sum-kpis").addEventListener("click", function (e) {
             if (e.target.closest("[data-attn]")) { U.openModal(attnModal); return; }
+            var t = e.target.closest("[data-toggle]");
+            if (t) { var m = t.getAttribute("data-toggle"); breakdown = breakdown === m ? "" : m; renderSummary(); return; }
             var b = e.target.closest("[data-tab]");
             if (!b) return;
             state.tab = b.getAttribute("data-tab"); state.page = 1; render();
-        });
-        document.getElementById("sum-stack").addEventListener("click", function (e) {
-            var b = e.target.closest("[data-tab]");
-            if (!b) return;
-            state.tab = b.getAttribute("data-tab"); state.page = 1; render();
-            document.getElementById("status-tabs").scrollIntoView({ behavior: "smooth", block: "center" });
         });
         document.getElementById("sum-grid").addEventListener("click", function (e) {
             var b = e.target.closest("[data-tab]");
